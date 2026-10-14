@@ -26,7 +26,7 @@ export default function SecurityLabPage() {
       </section>
       <section><h2>2. SQL 인젝션과 매개변수화</h2><p>사용자 입력을 SQL 문장에 직접 이어 붙이면 검색 조건이 바뀔 수 있습니다. 아래는 문자열을 화면에만 표시하며 데이터베이스 쿼리를 보내지 않습니다.</p>
         <label className="lab-label">로그인 아이디 예시<input value={sql} onChange={event => setSql(event.target.value)} maxLength={100} /></label>
-        <div className="lab-code"><span>위험한 방식의 예 (실행하지 않음)</span><code>{`SELECT * FROM members WHERE username = '${sql.replaceAll("'", "''")}'`}</code></div>
+        <div className="lab-code"><span>위험한 방식의 예 (실행하지 않음)</span><code>{`SELECT * FROM members WHERE username = '${sql}'`}</code></div>
         <div className="lab-code"><span>안전한 방식의 예</span><code>SELECT * FROM members WHERE username = ? <em>→ 입력값은 별도 매개변수로 전달</em></code></div>
       </section>
       <section><h2>3. 운영 사이트 점검 원칙</h2><ul><li>실제 계정·게시글 대신 테스트 계정과 샘플 데이터만 사용합니다.</li><li>입력을 HTML로 실행하지 말고, 취약한 처리가 있는지 안전한 테스트 환경에서 확인합니다.</li><li>문제가 발견되면 출력 시 이스케이프하고 SQL에는 매개변수 바인딩을 사용합니다.</li></ul></section>
