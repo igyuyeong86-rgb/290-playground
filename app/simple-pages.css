@@ -1,0 +1,37 @@
+.simple-page{--simple-ink:#22241f;--simple-muted:#72766d;--simple-line:#e8e9e3;min-height:100vh;background:#f7f8f5;color:var(--simple-ink);font-family:Arial,'Noto Sans KR',sans-serif;padding:0 24px 44px}
+.simple-header{max-width:1040px;height:78px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--simple-line);font-size:13px}
+.simple-header>a:last-child{color:var(--simple-muted);text-decoration:none}
+.simple-brand{font-size:19px;font-weight:800;text-decoration:none;letter-spacing:-.5px}.simple-brand span{font-weight:600;color:#6b755b}
+.simple-card{background:white;border:1px solid var(--simple-line);border-radius:14px;box-shadow:0 12px 40px #25291b08}
+.auth-card{width:min(100%,460px);margin:68px auto 50px;padding:38px 42px}
+.simple-kicker{font-size:10px;font-weight:800;letter-spacing:1.7px;color:#78815f;margin:0 0 12px}
+.auth-card h1,.policy-card h1{font-size:30px;letter-spacing:-1.2px;margin:0;line-height:1.35}
+.simple-intro{font-size:13px;color:var(--simple-muted);line-height:1.85;margin:10px 0 22px}
+.simple-tabs{display:flex;border-bottom:1px solid var(--simple-line);margin:20px 0 5px}
+.simple-tabs button{padding:11px 4px;margin-right:22px;color:#858980;border-bottom:2px solid transparent}.simple-tabs button.active{color:#30372b;border-color:#66744d;font-weight:700}
+.simple-page form>label{display:flex;flex-direction:column;gap:8px;margin:17px 0 0;font-size:12px;font-weight:600}
+.simple-page form input:not([type=checkbox]){width:100%;height:46px;border:1px solid #dfe2d9;border-radius:7px;padding:0 13px;font-size:13px;background:#fff;color:var(--simple-ink)}
+.simple-page form input:focus{outline:2px solid #98a581;outline-offset:1px}
+.simple-note{font-size:11px;line-height:1.7;color:#777d70;margin:9px 0 0}
+.simple-consent{display:flex!important;flex-direction:row!important;align-items:flex-start;gap:9px;font-size:11px!important;font-weight:400!important;color:var(--simple-muted)}
+.simple-consent input{margin:2px 0 0;accent-color:#66744d}.simple-consent a{color:#46533b}
+.simple-submit{width:100%;height:47px;margin-top:23px;border-radius:7px;background:#30362c;color:white;font-size:13px;font-weight:700}.simple-submit:hover{background:#48513e}.simple-submit:disabled{opacity:.55}
+.simple-error,.simple-success{font-size:12px;line-height:1.6;padding:10px 12px;border-radius:6px}.simple-error{color:#a13e2c;background:#fff0ec}.simple-success{color:#425735;background:#f0f5e8}
+.simple-switch{text-align:center;color:var(--simple-muted);font-size:12px;margin:22px 0 0}.simple-switch button{color:#53633f;font-weight:700}
+.simple-footer{max-width:1040px;margin:26px auto 0;display:flex;justify-content:center;gap:22px;flex-wrap:wrap;color:var(--simple-muted);font-size:11px}.simple-footer a{text-decoration:none}.simple-footer a:hover,.simple-header a:hover{text-decoration:underline}
+.document-page{padding-bottom:64px}.policy-card{max-width:850px;margin:38px auto 0;padding:42px 52px}.policy-card h1{font-size:32px}.policy-card .policy-date{font-size:11px;color:#858a80;margin:0 0 28px}.policy-card section{border-top:1px solid var(--simple-line);padding:20px 0 8px}.policy-card section h2{font-size:16px;margin:0 0 11px;letter-spacing:-.3px}.policy-card section p,.policy-card li{font-size:13px;line-height:1.95;color:#555a51}.policy-card section p{margin:8px 0}.policy-card ul{padding-left:20px;margin:8px 0}.policy-card li+li{margin-top:8px}.policy-card a{color:#46583a}.policy-note{border-radius:7px;background:#f4f6ef;padding:13px 15px;color:#707568;font-size:11px;line-height:1.8;margin:24px 0 0}.policy-card code{font-size:12px;background:#f3f4f0;padding:2px 5px;border-radius:4px}
+@media(max-width:600px){.simple-page{padding:0 16px 32px}.simple-header{height:66px;font-size:11px}.auth-card{margin:36px auto;padding:29px 23px}.auth-card h1{font-size:25px}.policy-card{margin:22px auto 0;padding:28px 22px}.policy-card h1{font-size:26px}.policy-card section p,.policy-card li{font-size:12px}.simple-footer{gap:14px}}
+
+/* Keep the community focused on the board and its posts. */
+.app .shell{display:block;max-width:1180px;padding:0 32px}
+.app .left-rail,.app .right-rail,.app .hero-art,.app .welcome-strip{display:none!important}
+.app main{padding-top:26px}
+.app .hero{min-height:0;padding:32px 38px;border-radius:10px;background:#f0f2eb}
+.app .hero h1{font-size:30px;margin:12px 0 8px}
+.app .hero p{font-size:13px;color:#666b60;margin-bottom:16px}
+.app .content-grid{display:block}
+.app .board-area{max-width:100%}
+.app footer{border-top:1px solid #e7e8e1;padding-top:18px;margin-top:40px}
+.app footer a{font-size:11px;text-decoration:none;color:#6f746a}
+.app footer a:hover{text-decoration:underline}
+@media(max-width:760px){.app .shell{padding:0 20px}.app main{padding-top:18px}.app .hero{padding:24px 21px}.app .hero h1{font-size:25px}.app footer>div{font-size:10px;flex-wrap:wrap}}
