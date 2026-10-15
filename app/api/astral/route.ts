@@ -2,7 +2,12 @@ import { env } from 'cloudflare:workers';
 import {characters,regions,seedPosts,checkpoints} from '../../../lib/astral-data';
 export const dynamic='force-dynamic';
 const db=()=>env.DB!;
+const bucket=()=>(env as unknown as {MEDIA?:R2Bucket}).MEDIA;
 const tables=[
+ 'CREATE TABLE IF NOT EXISTS astral_media (key TEXT PRIMARY KEY, target TEXT NOT NULL, parent TEXT NOT NULL, owner TEXT NOT NULL, bytes INTEGER NOT NULL, created INTEGER NOT NULL, committed INTEGER NOT NULL DEFAULT 0)',
+ 'CREATE TABLE IF NOT EXISTS astral_videos (target TEXT PRIMARY KEY, video TEXT NOT NULL)',
+ 'CREATE INDEX IF NOT EXISTS astral_media_target ON astral_media(target)',
+
  'CREATE TABLE IF NOT EXISTS astral_admin (id INTEGER PRIMARY KEY CHECK(id=1), salt TEXT NOT NULL, password TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1)',
  'CREATE TABLE IF NOT EXISTS astral_admin_sessions (token TEXT PRIMARY KEY, expires INTEGER NOT NULL, version INTEGER NOT NULL)',
  'CREATE TABLE IF NOT EXISTS astral_users (owner TEXT PRIMARY KEY, character TEXT NOT NULL, created INTEGER NOT NULL, seen INTEGER NOT NULL, blocked INTEGER NOT NULL DEFAULT 0)',
@@ -53,22 +58,22 @@ async function limit(req:Request,kind:string,max:number){
 function publicPost(p:any,me:Session|null){const {owner,...rest}=p;return {...rest,memes:JSON.parse(p.memes),owned:!!me&&owner===me.owner&&!p.seeded}}
 const selectPost='SELECT p.*, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments FROM astral_posts p';
 export async function GET(req:Request){try{
- await init();const url=new URL(req.url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
+ await init();const url=new URL(req.url);if(url.searchParams.has('image'))return serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
  if(id){
   const p=await db().prepare(selectPost+' WHERE p.id=? AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)').bind(id,at).first<any>();
   if(!p)return json({error:'이 시점에는 볼 수 없는 게시글입니다.'},404);
   const cs=await db().prepare('SELECT id,character,body,created,owner FROM astral_comments WHERE post=? ORDER BY created,id').bind(id).all<any>();
   const liked=me?!!await db().prepare('SELECT 1 FROM astral_likes WHERE post=? AND owner=?').bind(id,me.owner).first():false;
-  return json({post:publicPost(p,me),comments:cs.results.map(({owner,...c})=>({...c,owned:owner===me?.owner})),liked});
+  return json({post:{...publicPost(p,me),media:await readMedia(id)},comments:await Promise.all(cs.results.map(async({owner,...c})=>({...c,owned:owner===me?.owner,media:await readMedia(c.id)}))),liked});
  }
- const posts=await db().prepare(selectPost+' WHERE (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) ORDER BY p.created DESC LIMIT 1000').bind(at).all<any>();
- return json({posts:posts.results.map(p=>publicPost(p,me)),user:me?{character:me.character,admin:!!me.admin}:null});
+ const posts=await db().prepare(selectPost+" WHERE p.region"+(url.searchParams.get('board')==='notice'?"='notice'":"!='notice'")+' AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) ORDER BY p.created DESC LIMIT 1000').bind(at).all<any>();
+ return json({posts:posts.results.map(p=>publicPost(p,me)),mediaEnabled:!!bucket(),user:me?{character:me.character,admin:!!me.admin}:null});
  }catch(e){return json({error:e instanceof Error&&/시점/.test(e.message)?e.message:'통신을 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'},500)}}
 export async function POST(req:Request){try{
  if(req.headers.get('origin')!==new URL(req.url).origin)return json({error:'허용되지 않은 요청입니다.'},403);
- if(Number(req.headers.get('content-length')||0)>40000)return json({error:'입력 내용이 너무 깁니다.'},413);
- const raw=await req.text();if(raw.length>40000)return json({error:'입력 내용이 너무 깁니다.'},413);
- const b=JSON.parse(raw);await init();
+ if(Number(req.headers.get('content-length')||0)>7100000)return json({error:'입력 내용이 너무 깁니다.'},413);
+ const raw=await boundedBody(req,7100000);if(raw.length>7100000)return json({error:'입력 내용이 너무 깁니다.'},413);
+ const b=JSON.parse(raw);await init();await cleanupMedia();
  if(typeof b.action==='string'&&b.action.startsWith('admin'))return await adminWrite(req,b);
  const me=await session(req),now=Date.now();
  if(me&&!me.admin&&await db().prepare('SELECT 1 FROM astral_users WHERE owner=? AND blocked=1').bind(me.owner).first())return json({error:'이 사용자는 활동이 제한되었습니다.'},403);
@@ -97,13 +102,14 @@ export async function POST(req:Request){try{
   if(b.id){
    const p=await db().prepare('SELECT owner,seeded FROM astral_posts WHERE id=? AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=astral_posts.id)').bind(b.id).first<any>();
    if(!p||p.owner!==me.owner||p.seeded)return json({error:'이 브라우저에서 작성한 글만 수정할 수 있어요.'},403);
-   await db().prepare('UPDATE astral_posts SET title=?,body=?,region=?,at=? WHERE id=?').bind(title,body,region.id,at,b.id).run();return json({id:b.id});
+   await saveWithMedia(b.media,me,b.id,b.id,5,[db().prepare('UPDATE astral_posts SET title=?,body=?,region=?,at=? WHERE id=?').bind(title,body,region.id,at,b.id)]);return json({id:b.id});
   }
-  const id=crypto.randomUUID();await db().prepare('INSERT INTO astral_posts (id,owner,character,region,at,title,body,created) VALUES (?,?,?,?,?,?,?,?)').bind(id,me.owner,me.character,region.id,at,title,body,now).run();return json({id});
+  const id=crypto.randomUUID();await saveWithMedia(b.media,me,id,id,5,[db().prepare('INSERT INTO astral_posts (id,owner,character,region,at,title,body,created) VALUES (?,?,?,?,?,?,?,?)').bind(id,me.owner,me.character,region.id,at,title,body,now)]);return json({id});
  }
- const id=field(b.id,100),p=await db().prepare('SELECT owner,seeded,at,title,body,character FROM astral_posts WHERE id=? AND (seeded=0 OR at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=astral_posts.id)').bind(id,at).first<any>();
+ const id=field(b.id,100),p=await db().prepare('SELECT owner,seeded,at,title,body,character,region FROM astral_posts WHERE id=? AND (seeded=0 OR at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=astral_posts.id)').bind(id,at).first<any>();
  if(!p)return json({error:'게시글을 찾을 수 없거나 현재 시점에서 볼 수 없어요.'},404);
  if(b.action==='report'){
+  if(p.region==='notice'&&b.kind==='post')return json({error:'공지글은 신고할 수 없습니다.'},403);
   await limit(req,'report',5);
   const kind=b.kind;if(kind!=='post'&&kind!=='comment')return json({error:'신고 대상을 확인해 주세요.'},400);
   const target=kind==='post'?id:field(b.commentId,100);
@@ -114,17 +120,17 @@ export async function POST(req:Request){try{
  }
  if(b.action==='delete'){
   if(p.owner!==me.owner||p.seeded)return json({error:'이 브라우저에서 작성한 글만 삭제할 수 있어요.'},403);
-  await db().batch([db().prepare('DELETE FROM astral_comments WHERE post=?').bind(id),db().prepare('DELETE FROM astral_likes WHERE post=?').bind(id),db().prepare('DELETE FROM astral_posts WHERE id=?').bind(id)]);return json({ok:true});
+  await db().batch([db().prepare('DELETE FROM astral_comments WHERE post=?').bind(id),db().prepare('DELETE FROM astral_likes WHERE post=?').bind(id),db().prepare('DELETE FROM astral_posts WHERE id=?').bind(id)]);await cleanupMedia();return json({ok:true});
  }
- if(b.action==='comment'){await limit(req,'comment',30);await db().prepare('INSERT INTO astral_comments (id,post,owner,character,body,at,created) VALUES (?,?,?,?,?,?,?)').bind(crypto.randomUUID(),id,me.owner,me.character,field(b.body,2000),at,now).run();return json({ok:true})}
+ if(b.action==='comment'){await limit(req,'comment',30);const cid=crypto.randomUUID();await saveWithMedia(b.media,me,cid,id,1,[db().prepare('INSERT INTO astral_comments (id,post,owner,character,body,at,created) VALUES (?,?,?,?,?,?,?)').bind(cid,id,me.owner,me.character,field(b.body,2000),at,now)]);return json({ok:true})}
  if(b.action==='deleteComment'){
   const c=await db().prepare('SELECT owner FROM astral_comments WHERE id=? AND post=?').bind(field(b.commentId,100),id).first<any>();
   if(!c||c.owner!==me.owner)return json({error:'댓글 삭제 권한이 없어요.'},403);
-  await db().prepare('DELETE FROM astral_comments WHERE id=? AND post=?').bind(b.commentId,id).run();return json({ok:true});
+  await db().prepare('DELETE FROM astral_comments WHERE id=? AND post=?').bind(b.commentId,id).run();await cleanupMedia();return json({ok:true});
  }
  if(b.action==='like'){await limit(req,'like',60);if(typeof b.liked!=='boolean')return json({error:'공감 상태가 올바르지 않아요.'},400);await db().prepare(b.liked?'INSERT OR IGNORE INTO astral_likes(post,owner) VALUES (?,?)':'DELETE FROM astral_likes WHERE post=? AND owner=?').bind(id,me.owner).run();return json({ok:true})}
  return json({error:'알 수 없는 요청입니다.'},400);
- }catch(e){return json({error:e instanceof Error&&/입력|시점|잠시/.test(e.message)?e.message:'요청을 처리하지 못했어요. 다시 시도해 주세요.'},400)}}
+ }catch(e){return json({error:e instanceof Error&&/입력|시점|잠시|이미지|첨부|유튜브|저장소/.test(e.message)?e.message:'요청을 처리하지 못했어요. 다시 시도해 주세요.'},400)}}
 
 // Administrator privileges are separate from selectable character identities.
 const adminToken=(req:Request)=>req.headers.get('cookie')?.match(/(?:^|;\s*)astral_admin=([^;]+)/)?.[1];
@@ -162,7 +168,7 @@ async function adminRead(req:Request,url:URL){
  }else return json({error:'관리 메뉴를 확인해 주세요.'},400);
  const count=await db().prepare(`SELECT COUNT(*) AS total FROM ${from} WHERE ${where}`).bind(...args).first<{total:number}>();
  const rows=await db().prepare(`SELECT ${selection} FROM ${from} WHERE ${where} ORDER BY ${section==='users'?'u.seen':section==='reports'?'r.created':'p.created'} DESC LIMIT 25 OFFSET ?`).bind(...args,offset).all();
- return json({rows:rows.results,total:count?.total||0,page});
+ return json({rows:section==='posts'?await Promise.all(rows.results.map(async(r:any)=>({...r,media:await readMedia(r.id)}))):rows.results,total:count?.total||0,page});
 }
 async function adminWrite(req:Request,b:any){
  if(b.action==='adminLogin'){
@@ -209,11 +215,87 @@ async function adminWrite(req:Request,b:any){
   }else if(b.kind==='comment'){
    await db().batch([db().prepare('DELETE FROM astral_comments WHERE id=?').bind(id),db().prepare("UPDATE astral_reports SET status='resolved' WHERE kind='comment' AND target=? AND status='open'").bind(id)]);
   }else return json({error:'삭제 대상을 확인해 주세요.'},400);
-  return json({ok:true});
+  await cleanupMedia();return json({ok:true});
  }
  if(b.action==='adminReport'){
   if(!['resolved','dismissed','open'].includes(b.status))return json({error:'처리 상태를 확인해 주세요.'},400);
   await db().prepare('UPDATE astral_reports SET status=? WHERE id=?').bind(b.status,field(b.id,100)).run();return json({ok:true});
  }
  return json({error:'알 수 없는 관리자 요청입니다.'},400);
+}
+
+// Media is uploaded only when submitting a post/reply, so cancelling a draft stores nothing.
+async function boundedBody(req:Request,max:number){
+ const reader=req.body?.getReader();if(!reader)return '';const chunks:Uint8Array[]=[];let size=0;
+ while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw new Error('첨부 요청이 너무 큽니다.')}chunks.push(value)}
+ const data=new Uint8Array(size);let offset=0;for(const c of chunks){data.set(c,offset);offset+=c.length}return new TextDecoder().decode(data);
+}
+function videoId(value:unknown){
+ if(!value)return '';if(typeof value!=='string'||value.length>2048)throw new Error('유튜브 링크를 확인해 주세요.');
+ if(/^[A-Za-z0-9_-]{11}$/.test(value))return value;
+ try{const u=new URL(value);if(!['https:','http:'].includes(u.protocol))throw 0;
+ const host=u.hostname.toLowerCase();let id='';
+ if(host==='youtu.be')id=u.pathname.slice(1);
+ else if(['youtube.com','www.youtube.com','m.youtube.com','www.youtube-nocookie.com'].includes(host))id=u.pathname==='/watch'?u.searchParams.get('v')||'':/^\/(shorts|embed|live)\//.test(u.pathname)?u.pathname.split('/')[2]:'';
+ if(/^[A-Za-z0-9_-]{11}$/.test(id))return id;
+ }catch{}throw new Error('올바른 유튜브 영상 링크를 입력해 주세요.');
+}
+async function readMedia(target:string){
+ const rows=await db().prepare('SELECT key FROM astral_media WHERE target=? AND committed=1 ORDER BY created,key').bind(target).all<{key:string}>();
+ const video=await db().prepare('SELECT video FROM astral_videos WHERE target=?').bind(target).first<{video:string}>();
+ return {images:rows.results.map(r=>r.key),video:video?.video||''};
+}
+async function eraseMedia(keys:string[]){
+ if(!keys.length||!bucket())return;
+ await bucket()!.delete(keys);
+ await db().batch(keys.map(key=>db().prepare('DELETE FROM astral_media WHERE key=?').bind(key)));
+}
+async function cleanupMedia(){
+ try{
+ const rows=await db().prepare(`SELECT key FROM astral_media m WHERE
+ (committed=0 AND created<?) OR (committed=1 AND (
+ NOT EXISTS(SELECT 1 FROM astral_posts p WHERE p.id=m.parent)
+ OR EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=m.parent)
+ OR (m.target!=m.parent AND NOT EXISTS(SELECT 1 FROM astral_comments c WHERE c.id=m.target)))) LIMIT 50`).bind(Date.now()-86400000).all<{key:string}>();
+ await eraseMedia(rows.results.map(r=>r.key));
+ await db().prepare('DELETE FROM astral_videos WHERE NOT EXISTS(SELECT 1 FROM astral_posts WHERE id=target) AND NOT EXISTS(SELECT 1 FROM astral_comments WHERE id=target)').run();
+ }catch{/* Retain quota reservations and retry cleanup on the next mutation. */}
+}
+async function saveWithMedia(input:any,me:Session,target:string,parent:string,max:number,ops:D1PreparedStatement[]){
+ if(input===undefined){await db().batch(ops);return}
+ if(!input||!Array.isArray(input.images)||input.images.length>max)throw new Error(`이미지는 최대 ${max}장까지 첨부할 수 있습니다.`);
+ const video=videoId(input.video),old=await readMedia(target),kept:string[]=[],fresh:{key:string;data:Uint8Array}[]=[];
+ for(const item of input.images){
+ if(typeof item!=='string')throw new Error('이미지를 확인해 주세요.');
+ if(old.images.includes(item)){if(!kept.includes(item))kept.push(item);continue}
+ if(!item.startsWith('data:image/webp;base64,')||item.length>1400000)throw new Error('이미지는 압축된 WebP 형식으로 첨부해 주세요.');
+ let data:Uint8Array;try{data=Uint8Array.from(atob(item.slice(23)),c=>c.charCodeAt(0))}catch{throw new Error('이미지 데이터가 올바르지 않습니다.')}
+ const ascii=(a:number,b:number)=>String.fromCharCode(...data.slice(a,b));
+ if(data.length>1048576||data.length<20||ascii(0,4)!=='RIFF'||ascii(8,12)!=='WEBP'||!['VP8 ','VP8L','VP8X'].includes(ascii(12,16)))throw new Error('이미지 형식 또는 1MB 제한을 확인해 주세요.');
+ fresh.push({key:crypto.randomUUID()+'.webp',data});
+ }
+ if(fresh.length&&!bucket())throw new Error('이미지 저장소 연결이 필요합니다. 유튜브 링크와 글은 이용할 수 있어요.');
+ const reserved:string[]=[];
+ try{
+ for(const item of fresh){
+ // One conditional INSERT atomically reserves space, including in-flight uploads.
+ const result=await db().prepare('INSERT INTO astral_media(key,target,parent,owner,bytes,created) SELECT ?,?,?,?,?,? WHERE (SELECT COALESCE(SUM(bytes),0) FROM astral_media)+?<=8000000000').bind(item.key,target,parent,me.owner,item.data.length,Date.now(),item.data.length).run();
+ if(!result.meta.changes)throw new Error('이미지 저장소가 8GB 한도에 도달했습니다.');reserved.push(item.key);
+ await bucket()!.put(item.key,item.data,{httpMetadata:{contentType:'image/webp'}});
+ }
+ const desired=[...kept,...reserved];
+ await db().batch([...ops,...reserved.map(key=>db().prepare('UPDATE astral_media SET committed=1 WHERE key=?').bind(key)),
+ ...old.images.filter(key=>!desired.includes(key)).map(key=>db().prepare('UPDATE astral_media SET committed=0,created=0 WHERE key=?').bind(key)),
+ db().prepare('INSERT INTO astral_videos(target,video) VALUES (?,?) ON CONFLICT(target) DO UPDATE SET video=excluded.video').bind(target,video)]);
+ }catch(e){try{await eraseMedia(reserved)}catch{}throw e}
+ await cleanupMedia();
+}
+async function serveImage(url:URL){
+ const key=url.searchParams.get('image')||'';
+ const row=await db().prepare(`SELECT m.key FROM astral_media m JOIN astral_posts p ON p.id=m.parent WHERE m.key=? AND m.committed=1
+ AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)
+ AND (m.target=m.parent OR EXISTS(SELECT 1 FROM astral_comments c WHERE c.id=m.target))`).bind(key).first();
+ if(!row||!bucket())return new Response('Not found',{status:404});
+ const object=await bucket()!.get(key);if(!object)return new Response('Not found',{status:404});
+ return new Response(object.body,{headers:{'Content-Type':'image/webp','X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300','Content-Security-Policy':"default-src 'none'"}});
 }

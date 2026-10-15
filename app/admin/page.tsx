@@ -2,7 +2,8 @@
 import {useEffect,useState} from 'react';
 import {characterById} from '../../lib/astral-data';
 
-type Row={id:string;owner:string;character:string;created:number;seen:number;blocked:number;title:string;body:string;comments:number;posts:number;reason:string;kind:string;target:string;status:string;reporter:string};
+import {MediaView,type Media} from '../media';
+type Row={id:string;owner:string;character:string;created:number;seen:number;blocked:number;title:string;body:string;comments:number;posts:number;reason:string;kind:string;target:string;status:string;reporter:string;media?:Media};
 const date=(n:number)=>new Date(n).toLocaleString('ko-KR');
 const name=(id:string)=>characterById(id)?.name||id;
 const labels:Record<string,string>={posts:'게시물 관리',users:'사용자 관리',reports:'신고된 게시물',settings:'비밀번호 변경'};
@@ -43,7 +44,7 @@ export default function AdminPage(){
  {loading?<p role="status">목록을 불러오는 중…</p>:!rows.length?<p className="quiet">표시할 항목이 없습니다.</p>:<div className="admin-list">{rows.map(r=><article className="admin-row" key={r.id||r.owner}>
  {tab==='users'?<><div className="admin-row-top"><strong>{name(r.character)}</strong><span className={'admin-badge '+(r.blocked?'warn':'')}>{r.blocked?'활동 제한':'정상'}</span></div><code>{r.owner}</code><p>게시글 {r.posts} · 댓글 {r.comments}</p><small>첫 활동 {date(r.created)} · 최근 활동 {date(r.seen)}</small><div className="admin-actions"><button onClick={()=>{navigate('posts');setQ(r.owner)}}>작성한 글 보기</button><button disabled={busy} onClick={()=>act({action:'adminBlock',owner:r.owner,blocked:!r.blocked},r.blocked?'이 사용자의 활동 제한을 해제할까요?':'이 사용자의 글·댓글·공감·신고 활동을 제한할까요?')}>{r.blocked?'차단 해제':'사용자 차단'}</button></div></>:<>
  <div className="admin-row-top"><strong>{r.title}</strong><span>{date(r.created)}</span></div><p className="admin-author">{name(r.character)} <code>{r.owner}</code>{tab==='posts'&&` · 댓글 ${r.comments}`}</p>
- {tab==='posts'?<details><summary>{r.body.slice(0,160)}{r.body.length>160?'…':''}</summary><p className="admin-body">{r.body}</p></details>:<><div className="admin-row-top"><span className="admin-badge">{r.kind==='comment'?'댓글 신고':'게시글 신고'}</span><span>{r.status==='open'?'미처리':r.status==='resolved'?'처리 완료':'기각'}</span></div><p className="admin-body">{r.body}</p><div className="admin-report-reason"><b>신고 사유</b><p>{r.reason}</p><small>신고자 {r.reporter}</small></div><p className="field-note">신고 접수 당시 내용입니다. 원문이 수정·삭제되어도 기록은 남습니다.</p></>}
+ {tab==='posts'?<details><summary>{r.body.slice(0,160)}{r.body.length>160?'…':''}</summary><p className="admin-body">{r.body}</p><MediaView media={r.media}/></details>:<><div className="admin-row-top"><span className="admin-badge">{r.kind==='comment'?'댓글 신고':'게시글 신고'}</span><span>{r.status==='open'?'미처리':r.status==='resolved'?'처리 완료':'기각'}</span></div><p className="admin-body">{r.body}</p><div className="admin-report-reason"><b>신고 사유</b><p>{r.reason}</p><small>신고자 {r.reporter}</small></div><p className="field-note">신고 접수 당시 내용입니다. 원문이 수정·삭제되어도 기록은 남습니다.</p></>}
  <div className="admin-actions"><button disabled={busy} onClick={()=>act({action:'adminDelete',kind:tab==='posts'?'post':r.kind,id:tab==='posts'?r.id:r.target},'이 콘텐츠를 게시판에서 삭제할까요?')}>{tab==='reports'&&r.kind==='comment'?'댓글 삭제':'게시글 삭제'}</button>{tab==='reports'&&<><button disabled={busy} onClick={()=>act({action:'adminReport',id:r.id,status:'resolved'})}>처리 완료</button><button disabled={busy} onClick={()=>act({action:'adminReport',id:r.id,status:'dismissed'})}>기각</button>{r.status!=='open'&&<button disabled={busy} onClick={()=>act({action:'adminReport',id:r.id,status:'open'})}>다시 열기</button>}</>}</div>
  </>}
  </article>)}</div>}

@@ -19,7 +19,8 @@
     "db:configure": "node scripts/configure-d1.mjs",
     "deploy:check": "node scripts/check-deploy.mjs",
     "deploy": "npm run deploy:check && npm run build && node --import ./scripts/cloudflare-env.mjs ./node_modules/wrangler/bin/wrangler.js deploy --config dist/server/wrangler.json",
-    "deploy:dry-run": "npm run build && node --import ./scripts/cloudflare-env.mjs ./node_modules/wrangler/bin/wrangler.js deploy --config dist/server/wrangler.json --dry-run"
+    "deploy:dry-run": "npm run build && node --import ./scripts/cloudflare-env.mjs ./node_modules/wrangler/bin/wrangler.js deploy --config dist/server/wrangler.json --dry-run",
+    "media:configure": "node scripts/configure-media.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
