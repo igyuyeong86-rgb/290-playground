@@ -22,7 +22,7 @@ const timeline:[string,string][]=[
 ];
 export const checkpoints=timeline.map(([region,phase],at)=>({at,region,label:`${regions.find(r=>r.id===region)!.name} · ${phase}`}));
 export const memeNames:Record<string,string>={M01:'쓰레기통 집착',M02:'은하 방망이 협객',M03:'빙글뱅글 · 쿠루쿠루',M04:'더 많은 헤르타!',M05:'길치 아케론',M06:'게파드의 그림 실력',M07:'청작의 월급 루팡',M08:'부트힐의 순화된 욕설'};
-export const characterById=(id:string)=>characters.find(c=>c.id===id);
+export const characterById=(id:string)=>id==='__admin__'?{id:'__admin__',name:'게시판의 에이온즈',image:'/favicon.svg',group:'관리자',aliases:[],key:'admin',source:''}:characters.find(c=>c.id===id);
 export type Seed={id:string;character:string;region:string;at:number;title:string;body:string;memes:string[];source:string};
 const rows:[string,number,string,string,string[]?][]=[
  ['Asta',0,'복구 보고보다 먼저 확인할 것','연구원들은 다들 무사해? 장비 손실은 정리해서 보내 줘. 다친 사람은 보고서 쓰기 전에 의료 구역부터 가고. 오늘은 그게 가장 중요한 업무야.'],
@@ -70,4 +70,4 @@ const firstPosts:Seed[]=rows.map(([key,at,title,body,memes=[]],i)=>{
 export const seedPosts:Seed[]=[...firstPosts,...extraRows.map(([key,region,at,title,body])=>{const c=characters.find(c=>c.id===key||c.key===key)!;return {id:`profile-${c.id}`,character:c.id,region,at,title,body,memes:[],source:c.source};})];
 export type Post = Seed & {created:number;likes:number;comments:number;seeded:number;owned:boolean};
 export type Comment={id:string;character:string;body:string;created:number;owned:boolean};
-export type Visitor={character:string};
+export type Visitor={character:string;admin?:boolean};

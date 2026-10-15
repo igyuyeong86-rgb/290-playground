@@ -1,0 +1,42 @@
+import { chromium } from 'file:///C:/Users/igyuy/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs';
+import {readFileSync,mkdirSync} from 'node:fs';
+import {strict as assert} from 'node:assert';
+const base=process.env.ASTRAL_TEST_URL||'http://127.0.0.1:5184';
+assert.ok(['127.0.0.1','localhost'].includes(new URL(base).hostname),'Run only against a local QA database');
+const password=readFileSync('.dev.vars','utf8').match(/ADMIN_INITIAL_PASSWORD="([^"]+)"/)[1];
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+const errors=[];mkdirSync('outputs/admin-qa',{recursive:true});
+try{
+ const visitor=await browser.newContext(),admin=await browser.newContext({viewport:{width:1440,height:1000}});
+ async function api(ctx,body){const r=await ctx.request.post(base+'/api/astral',{headers:{origin:base},data:{at:21,...body}});assert.equal(r.status(),200,await r.text());return r.json()}
+ await api(visitor,{action:'select',character:'1001'});
+ const post=await api(visitor,{action:'save',title:'관리자 검증용 게시글',body:'사용자 콘텐츠 신고 및 관리 화면 검증',region:'herta'});
+ await api(visitor,{action:'comment',id:post.id,body:'신고할 댓글 테스트'});
+ const page=await visitor.newPage();page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>localStorage.setItem('astral-checkpoint-v2','21'));
+ await page.goto(base,{waitUntil:'networkidle'});await page.getByRole('heading',{name:'관리자 검증용 게시글',exact:true}).click();
+ await page.getByRole('button',{name:'게시글 신고',exact:true}).click();await page.getByLabel('신고 사유').fill('게시글 신고 검증');await page.getByRole('button',{name:'신고 접수'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+ await page.getByRole('button',{name:'댓글 신고'}).click();await page.getByLabel('신고 사유').fill('댓글 신고 검증');await page.getByRole('button',{name:'신고 접수'}).click();await page.locator('dialog').waitFor({state:'hidden'});
+ const ap=await admin.newPage();ap.on('pageerror',e=>errors.push(e.message));
+ await ap.goto(base+'/admin');await ap.getByRole('heading',{name:'관리자 로그인이 필요합니다'}).waitFor();
+ await ap.goto(base,{waitUntil:'networkidle'});await ap.locator('.profile-button').click();
+ assert.equal(await ap.getByRole('button',{name:/게시판의 에이온즈/}).count(),0);
+ await ap.getByLabel('캐릭터 검색').fill('공병후는게이다');await ap.getByRole('button',{name:/게시판의 에이온즈/}).click();
+ await ap.getByLabel('관리자 비밀번호').fill('incorrect');await ap.getByRole('button',{name:'관리자로 로그인'}).click();await ap.getByRole('alert').filter({hasText:'비밀번호가 올바르지 않습니다.'}).waitFor();
+ await ap.getByLabel('관리자 비밀번호').fill(password);await ap.getByRole('button',{name:'관리자로 로그인'}).click();await ap.locator('dialog').waitFor({state:'hidden'});
+ await ap.getByRole('link',{name:'관리 페이지',exact:true}).click();await ap.getByText('관리자 검증용 게시글',{exact:true}).waitFor();
+ assert.equal(await ap.getByLabel('스토리 시점',{exact:true}).count(),0);
+ await ap.screenshot({path:'outputs/admin-qa/posts.png',fullPage:true});
+ await ap.getByRole('button',{name:'신고된 게시물',exact:true}).click();await ap.getByText('게시글 신고 검증',{exact:true}).waitFor();await ap.getByText('댓글 신고 검증',{exact:true}).waitFor();
+ await ap.screenshot({path:'outputs/admin-qa/reports.png',fullPage:true});
+ ap.on('dialog',d=>d.accept());
+ await ap.getByRole('button',{name:'댓글 삭제',exact:true}).click();await ap.getByText('댓글 신고 검증',{exact:true}).waitFor({state:'hidden'});
+ await ap.getByRole('button',{name:'게시글 삭제',exact:true}).click();await ap.getByText('게시글 신고 검증',{exact:true}).waitFor({state:'hidden'});
+ await ap.getByRole('button',{name:'사용자 관리',exact:true}).click();await ap.getByRole('button',{name:'사용자 차단',exact:true}).first().click();await ap.getByRole('button',{name:'차단 해제',exact:true}).waitFor();
+ await ap.getByRole('button',{name:'차단 해제',exact:true}).click();await ap.getByRole('button',{name:'사용자 차단',exact:true}).first().waitFor();
+ await ap.setViewportSize({width:390,height:844});assert.equal(await ap.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await ap.screenshot({path:'outputs/admin-qa/mobile.png',fullPage:true});
+ await ap.getByRole('button',{name:'비밀번호 변경',exact:true}).click();const next='qa-'+crypto.randomUUID();await ap.getByLabel('현재 비밀번호',{exact:true}).fill(password);await ap.getByLabel('새 비밀번호',{exact:true}).fill(next);await ap.getByLabel('새 비밀번호 확인',{exact:true}).fill(next);await ap.getByRole('button',{name:'비밀번호 변경',exact:true}).last().click();await ap.getByRole('heading',{name:'관리자 로그인이 필요합니다'}).waitFor();
+ await api(admin,{action:'adminLogin',password:next});await api(admin,{action:'adminPassword',current:next,next:password});
+ assert.equal(errors.length,0,errors.join('\n'));
+ console.log('PASS: hidden exact-match profile, wrong-password feedback, admin login, guarded dashboard, full timeline posts, post/comment reports, moderation, block/unblock, password change, mobile layout, no browser errors.');
+}finally{await browser.close()}

@@ -8,7 +8,7 @@ class Statement{
  bind(...args){return new Statement(this.query,args)}
  async first(){return sql.prepare(this.query).get(...this.args)||null}
  async all(){return {results:sql.prepare(this.query).all(...this.args)}}
- async run(){const r=sql.prepare(this.query).run(...this.args);return {meta:{last_row_id:Number(r.lastInsertRowid)}}}
+ async run(){const r=sql.prepare(this.query).run(...this.args);return {meta:{last_row_id:Number(r.lastInsertRowid),changes:Number(r.changes)}}}
 }
 globalThis.__env={DB:{prepare:s=>new Statement(s),batch:async statements=>{sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results}catch(e){sql.exec('ROLLBACK');throw e}}}};
 const module=async(source)=>import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64'));
@@ -55,4 +55,51 @@ assert.equal((await post({action:'delete',id},switched.cookie)).status,200);asse
 assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM astral_comments').get().n,0);assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM astral_likes').get().n,0);
 let limited;for(let i=0;i<31;i++)limited=await post({action:'select',character:'8002'},'','limited');assert.match(limited.data.error,/잠시/);
 console.log('PASS: 73 profile assets, all 73 profiles covered, 22 timeline boundaries, idempotent initialization, anonymous sessions, same-character ownership isolation, identity switching, edits, seed protection, comments, future-comment filtering, likes, CSRF, cascades and request limiting.');
-console.log('SEEDS',seedPosts.length);sql.close();
+console.log('SEEDS',seedPosts.length);
+// Admin/report regression: API authorization is checked independently of UI visibility.
+const secret='test-'+crypto.randomUUID(),nextSecret='next-'+crypto.randomUUID();
+globalThis.__env.ADMIN_INITIAL_PASSWORD=secret;
+async function adminGet(section,cookie='',extra=''){const r=await GET(new Request(origin+'/api/astral?admin='+section+extra,{headers:{cookie}}));return {status:r.status,data:await r.json()}}
+assert.equal((await adminGet('posts')).status,401);
+assert.equal((await post({action:'adminBlock',owner:'x',blocked:true},b.cookie)).status,401);
+assert.equal((await post({action:'select',character:'__admin__'},b.cookie)).status,400);
+assert.equal((await post({action:'adminLogin',password:'incorrect'},'','admin-wrong')).status,401);
+const login=await post({action:'adminLogin',password:secret},'','admin-good');assert.equal(login.status,200);assert.match(login.header,/HttpOnly/);assert.match(login.header,/Secure/);assert.match(login.header,/SameSite=Strict/);
+const adminCookie=login.cookie;
+assert.equal((await get(21,adminCookie)).data.user.character,'__admin__');
+assert.equal((await adminGet('posts',adminCookie)).status,200);
+const visitor=await post({action:'select',character:'1001'},'','reporter');
+const target=await post({action:'save',title:'Moderation target',body:'User content',region:'herta',at:21},visitor.cookie,'target');assert.equal(target.status,200);
+assert.ok((await adminGet('posts',adminCookie)).data.rows.some(p=>p.id===target.data.id),'all story points visible');
+await post({action:'comment',id:target.data.id,body:'Reported reply'},visitor.cookie,'target-comment');
+const comment=(await get(21,visitor.cookie,target.data.id)).data.comments[0];
+assert.equal((await post({action:'report',kind:'post',id:target.data.id,reason:'Test reason'},b.cookie,'report')).status,200);
+await post({action:'report',kind:'post',id:target.data.id,reason:'duplicate'},b.cookie,'report');
+await post({action:'report',kind:'comment',id:target.data.id,commentId:comment.id,reason:'Reply reason'},b.cookie,'report');
+assert.equal((await post({action:'report',kind:'comment',id:target.data.id,commentId:'missing',reason:'bad'},b.cookie,'report')).status,404);
+let reports=(await adminGet('reports',adminCookie)).data.rows;assert.equal(reports.length,2,'deduplicated');
+assert.equal((await adminGet('reports',visitor.cookie)).status,401);
+const report=reports.find(r=>r.kind==='post'),owner=report.owner;
+assert.equal((await post({action:'adminBlock',owner,blocked:true},adminCookie)).status,200);
+assert.equal((await post({action:'select',character:'1002'},visitor.cookie,'blocked')).status,403);
+assert.equal((await post({action:'save',title:'Blocked',body:'No',region:'herta'},visitor.cookie,'blocked')).status,403);
+await post({action:'adminBlock',owner,blocked:false},adminCookie);
+assert.equal((await post({action:'adminDelete',kind:'comment',id:comment.id},adminCookie)).status,200);
+assert.equal((await get(21,'',target.data.id)).data.comments.length,0);
+assert.equal((await post({action:'adminDelete',kind:'post',id:target.data.id},adminCookie)).status,200);
+assert.equal((await get(21,'',target.data.id)).status,404);
+assert.equal((await post({action:'save',id:target.data.id,title:'restore',body:'no',region:'herta'},visitor.cookie,'target')).status,403);
+assert.equal((await adminGet('reports',adminCookie,'&status=resolved')).data.rows.length,2);
+await post({action:'adminReport',id:report.id,status:'dismissed'},adminCookie);
+assert.equal((await adminGet('reports',adminCookie,'&status=dismissed')).data.rows.length,1);
+const seed=seedPosts[0];await post({action:'adminDelete',kind:'post',id:seed.id},adminCookie);assert.equal((await get(21,'',seed.id)).status,404);
+assert.equal((await post({action:'adminPassword',current:'incorrect',next:nextSecret},adminCookie,'pw-wrong')).status,403);
+const second=await post({action:'adminLogin',password:secret},'','admin-second');
+assert.equal((await post({action:'adminPassword',current:secret,next:nextSecret},adminCookie,'pw-change')).status,200);
+assert.equal((await adminGet('session',adminCookie)).status,401);assert.equal((await adminGet('session',second.cookie)).status,401);
+assert.equal((await post({action:'adminLogin',password:secret},'','admin-old')).status,401);
+const newLogin=await post({action:'adminLogin',password:nextSecret},'','admin-new');assert.equal(newLogin.status,200);
+await post({action:'select',character:'1001'},newLogin.cookie,'leave-admin');assert.equal((await adminGet('session',newLogin.cookie)).status,401);
+assert.notEqual(sql.prepare('SELECT password FROM astral_admin').get().password,nextSecret,'never store plain password');
+console.log('PASS: administrator auth, wrong passwords, protected endpoints, full timeline lists, report deduplication and snapshots, block/unblock, moderated deletion, seed hiding, password rotation invalidating all sessions, old-password rejection, character switch revokes admin.');
+sql.close();
