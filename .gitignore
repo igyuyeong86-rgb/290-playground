@@ -56,3 +56,10 @@ next-env.d.ts
 /work/
 
 *.tsbuildinfo
+
+# Standalone Cloudflare: local secrets, databases and historical metadata
+.dev.vars*
+*.sqlite*
+*.db
+/.openai/
+/work-async-test/

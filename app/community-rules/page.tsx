@@ -1,15 +1,1 @@
-import Link from 'next/link';
-
-export const metadata = { title: '커뮤니티 운영원칙 | 290의 놀이터', description: '모두가 편안하게 참여할 수 있도록 290의 놀이터가 함께 지키는 약속입니다.' };
-
-export default function CommunityRulesPage() {
-  return <main className="simple-page document-page"><header className="simple-header"><Link className="simple-brand" href="/">290 <span>놀이터</span></Link><Link href="/">커뮤니티로 돌아가기</Link></header>
-    <article className="simple-card policy-card"><p className="simple-kicker">COMMUNITY</p><h1>커뮤니티 운영원칙</h1><p className="simple-intro">서로 다른 사람들이 안전하고 편안하게 이야기할 수 있도록 함께 지켜주세요.</p>
-      <section><h2>서로 존중하기</h2><p>생각이 달라도 사람을 공격하거나 괴롭히지 말고, 위협·혐오·차별 표현을 올리지 않습니다.</p></section>
-      <section><h2>개인정보 보호하기</h2><p>본인이나 다른 사람의 전화번호, 주소, 비밀번호, 계정 정보 등 사적인 정보를 게시하지 않습니다.</p></section>
-      <section><h2>알맞은 내용 올리기</h2><p>주제에 맞는 게시판을 이용하고, 같은 내용을 반복해서 올리거나 무관한 광고·스팸을 게시하지 않습니다.</p></section>
-      <section><h2>권리와 법 지키기</h2><p>저작권·초상권 등 다른 사람의 권리를 침해하거나 불법 행위를 조장하는 콘텐츠를 게시하지 않습니다.</p></section>
-      <section><h2>운영 조치</h2><p>운영자는 위반 게시물이나 댓글을 숨기거나 삭제할 수 있으며, 반복되거나 심각한 위반에는 계정 이용 제한을 적용할 수 있습니다.</p></section>
-      <p className="policy-note">문제 있는 게시물을 발견하면 운영자에게 알려주세요. 사이트의 게시물 작성 기능은 공개 게시판에 글을 남기므로, 비밀이 필요한 개인정보나 문의 내용을 게시글에 적지 마세요.</p>
-    </article><footer className="simple-footer"><Link href="/privacy">개인정보 처리방침</Link><Link href="/terms">이용약관</Link><Link href="/community-rules">커뮤니티 운영원칙</Link></footer></main>;
-}
+export default function Page(){return <main className="info-page"><a href="/">← 은하열차 통신</a><h1>같은 여정을 걷는 동료들에게</h1><h2>01. 가입 없이 캐릭터 선택</h2><p>상단의 캐릭터 선택으로 프로필을 고른 뒤 글·답장·공감을 남길 수 있어요. 캐릭터는 언제든 바꿀 수 있고, 작성한 글의 이름은 작성 당시 프로필로 남습니다.</p><h2>02. 이야기의 시점을 맞추기</h2><p>상단 시점 선택으로 그때까지의 게시글과 댓글을 볼 수 있어요. 본편·재방문·기억 기록을 포함한 22개 편집 시점을 제공합니다. 실제 게임 진도와 자동 연동되지 않으며, 게시글에 지정된 시점을 기준으로 숨깁니다. 방문자가 본문에 잘못 넣은 스포일러를 자동 검출하는 기능은 아닙니다.</p><h2>03. 캐릭터의 마음을 존중하기</h2><p>성격과 말투를 참고하되 밈만 반복하지 않아요. 글쓰기에서는 인물이 그 시점에 아는 사실을 기준으로 해 주세요. 미리 수록된 글은 창작 표시와 실제 사용한 밈을 제공합니다.</p><h2>04. 서로의 창작을 존중하기</h2><p>다른 방문자가 같은 캐릭터를 선택해도 내 글의 수정 권한을 얻지는 않아요. 내 글과 댓글은 이 브라우저에서 수정·삭제할 수 있습니다. 개인정보, 도배, 다른 이용자를 향한 공격은 남기지 말아 주세요.</p></main>}

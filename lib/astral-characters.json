@@ -1,0 +1,899 @@
+[
+  {
+    "id": "8001",
+    "key": "Trailblazer",
+    "name": "개척자 · 카일루스",
+    "group": "은하열차",
+    "image": "/characters/8001.png",
+    "aliases": [
+      "개척자",
+      "Trailblazer",
+      "스텔레",
+      "카일루스"
+    ],
+    "source": "C001"
+  },
+  {
+    "id": "8002",
+    "key": "Trailblazer",
+    "name": "개척자 · 스텔레",
+    "group": "은하열차",
+    "image": "/characters/8002.png",
+    "aliases": [
+      "개척자",
+      "Trailblazer",
+      "스텔레",
+      "카일루스"
+    ],
+    "source": "C001"
+  },
+  {
+    "id": "1001",
+    "key": "March_7th",
+    "name": "Mar. 7th",
+    "group": "은하열차",
+    "image": "/characters/1001.png",
+    "aliases": [
+      "Mar. 7th",
+      "March 7th",
+      "삼칠이",
+      "Mar.7th"
+    ],
+    "source": "C002"
+  },
+  {
+    "id": "1002",
+    "key": "Dan_Heng",
+    "name": "단항",
+    "group": "은하열차",
+    "image": "/characters/1002.png",
+    "aliases": [
+      "단항",
+      "Dan Heng",
+      "단항·음월",
+      "단항 음월",
+      "음월",
+      "Dan Heng Imbibitor Lunae",
+      "단항·등황",
+      "단항 등황"
+    ],
+    "source": "C003"
+  },
+  {
+    "id": "1003",
+    "key": "Himeko",
+    "name": "히메코",
+    "group": "은하열차",
+    "image": "/characters/1003.png",
+    "aliases": [
+      "히메코",
+      "Himeko"
+    ],
+    "source": "C004"
+  },
+  {
+    "id": "1004",
+    "key": "Welt",
+    "name": "웰트",
+    "group": "은하열차",
+    "image": "/characters/1004.png",
+    "aliases": [
+      "웰트",
+      "Welt"
+    ],
+    "source": "C005"
+  },
+  {
+    "id": "1005",
+    "key": "Kafka",
+    "name": "카프카",
+    "group": "스텔라론 헌터",
+    "image": "/characters/1005.png",
+    "aliases": [
+      "카프카",
+      "Kafka"
+    ],
+    "source": "C006"
+  },
+  {
+    "id": "1006",
+    "key": "Silver_Wolf",
+    "name": "은랑",
+    "group": "스텔라론 헌터",
+    "image": "/characters/1006.png",
+    "aliases": [
+      "은랑",
+      "Silver Wolf"
+    ],
+    "source": "C007"
+  },
+  {
+    "id": "1205",
+    "key": "Blade",
+    "name": "블레이드",
+    "group": "스텔라론 헌터",
+    "image": "/characters/1205.png",
+    "aliases": [
+      "블레이드",
+      "Blade"
+    ],
+    "source": "C008"
+  },
+  {
+    "id": "1310",
+    "key": "Firefly",
+    "name": "반디",
+    "group": "스텔라론 헌터",
+    "image": "/characters/1310.png",
+    "aliases": [
+      "반디",
+      "Firefly",
+      "샘",
+      "SAM"
+    ],
+    "source": "C009"
+  },
+  {
+    "id": "1013",
+    "key": "Herta",
+    "name": "헤르타",
+    "group": "우주정거장·학자",
+    "image": "/characters/1013.png",
+    "aliases": [
+      "헤르타",
+      "Herta"
+    ],
+    "source": "C010"
+  },
+  {
+    "id": "1401",
+    "key": "The_Herta",
+    "name": "더 헤르타",
+    "group": "우주정거장·학자",
+    "image": "/characters/1401.png",
+    "aliases": [
+      "더 헤르타",
+      "The Herta"
+    ],
+    "source": "C011"
+  },
+  {
+    "id": "1009",
+    "key": "Asta",
+    "name": "아스타",
+    "group": "우주정거장·학자",
+    "image": "/characters/1009.png",
+    "aliases": [
+      "아스타",
+      "Asta"
+    ],
+    "source": "C012"
+  },
+  {
+    "id": "1008",
+    "key": "Arlan",
+    "name": "아를란",
+    "group": "우주정거장·학자",
+    "image": "/characters/1008.png",
+    "aliases": [
+      "아를란",
+      "Arlan"
+    ],
+    "source": "C013"
+  },
+  {
+    "id": "1303",
+    "key": "Ruan_Mei",
+    "name": "완·매",
+    "group": "우주정거장·학자",
+    "image": "/characters/1303.png",
+    "aliases": [
+      "완·매",
+      "Ruan Mei",
+      "완매",
+      "완 매"
+    ],
+    "source": "C014"
+  },
+  {
+    "id": "1305",
+    "key": "Dr._Ratio",
+    "name": "Dr. 레이시오",
+    "group": "우주정거장·학자",
+    "image": "/characters/1305.png",
+    "aliases": [
+      "Dr. 레이시오",
+      "Dr. Ratio",
+      "레이시오"
+    ],
+    "source": "C015"
+  },
+  {
+    "id": "1101",
+    "key": "Bronya",
+    "name": "브로냐",
+    "group": "벨로보그",
+    "image": "/characters/1101.png",
+    "aliases": [
+      "브로냐",
+      "Bronya"
+    ],
+    "source": "C016"
+  },
+  {
+    "id": "1102",
+    "key": "Seele",
+    "name": "제레",
+    "group": "벨로보그",
+    "image": "/characters/1102.png",
+    "aliases": [
+      "제레",
+      "Seele"
+    ],
+    "source": "C017"
+  },
+  {
+    "id": "1104",
+    "key": "Gepard",
+    "name": "게파드",
+    "group": "벨로보그",
+    "image": "/characters/1104.png",
+    "aliases": [
+      "게파드",
+      "Gepard"
+    ],
+    "source": "C018"
+  },
+  {
+    "id": "1103",
+    "key": "Serval",
+    "name": "서벌",
+    "group": "벨로보그",
+    "image": "/characters/1103.png",
+    "aliases": [
+      "서벌",
+      "Serval"
+    ],
+    "source": "C019"
+  },
+  {
+    "id": "1105",
+    "key": "Natasha",
+    "name": "나타샤",
+    "group": "벨로보그",
+    "image": "/characters/1105.png",
+    "aliases": [
+      "나타샤",
+      "Natasha"
+    ],
+    "source": "C020"
+  },
+  {
+    "id": "1106",
+    "key": "Pela",
+    "name": "페라",
+    "group": "벨로보그",
+    "image": "/characters/1106.png",
+    "aliases": [
+      "페라",
+      "Pela"
+    ],
+    "source": "C021"
+  },
+  {
+    "id": "1110",
+    "key": "Lynx",
+    "name": "링스",
+    "group": "벨로보그",
+    "image": "/characters/1110.png",
+    "aliases": [
+      "링스",
+      "Lynx"
+    ],
+    "source": "C022"
+  },
+  {
+    "id": "1111",
+    "key": "Luka",
+    "name": "루카",
+    "group": "벨로보그",
+    "image": "/characters/1111.png",
+    "aliases": [
+      "루카",
+      "Luka"
+    ],
+    "source": "C023"
+  },
+  {
+    "id": "1107",
+    "key": "Clara",
+    "name": "클라라",
+    "group": "벨로보그",
+    "image": "/characters/1107.png",
+    "aliases": [
+      "클라라",
+      "Clara"
+    ],
+    "source": "C024"
+  },
+  {
+    "id": "1109",
+    "key": "Hook",
+    "name": "후크",
+    "group": "벨로보그",
+    "image": "/characters/1109.png",
+    "aliases": [
+      "후크",
+      "Hook"
+    ],
+    "source": "C025"
+  },
+  {
+    "id": "1108",
+    "key": "Sampo",
+    "name": "삼포",
+    "group": "벨로보그·가면의 우인",
+    "image": "/characters/1108.png",
+    "aliases": [
+      "삼포",
+      "Sampo"
+    ],
+    "source": "C026"
+  },
+  {
+    "id": "1204",
+    "key": "Jing_Yuan",
+    "name": "경원",
+    "group": "선주",
+    "image": "/characters/1204.png",
+    "aliases": [
+      "경원",
+      "Jing Yuan"
+    ],
+    "source": "C027"
+  },
+  {
+    "id": "1208",
+    "key": "Fu_Xuan",
+    "name": "부현",
+    "group": "선주",
+    "image": "/characters/1208.png",
+    "aliases": [
+      "부현",
+      "Fu Xuan"
+    ],
+    "source": "C028"
+  },
+  {
+    "id": "1201",
+    "key": "Qingque",
+    "name": "청작",
+    "group": "선주",
+    "image": "/characters/1201.png",
+    "aliases": [
+      "청작",
+      "Qingque"
+    ],
+    "source": "C029"
+  },
+  {
+    "id": "1202",
+    "key": "Tingyun",
+    "name": "정운",
+    "group": "선주",
+    "image": "/characters/1202.png",
+    "aliases": [
+      "정운",
+      "Tingyun"
+    ],
+    "source": "C030"
+  },
+  {
+    "id": "1225",
+    "key": "Fugue",
+    "name": "망귀인",
+    "group": "선주",
+    "image": "/characters/1225.png",
+    "aliases": [
+      "망귀인",
+      "Fugue"
+    ],
+    "source": "C031"
+  },
+  {
+    "id": "1209",
+    "key": "Yanqing",
+    "name": "연경",
+    "group": "선주",
+    "image": "/characters/1209.png",
+    "aliases": [
+      "연경",
+      "Yanqing"
+    ],
+    "source": "C032"
+  },
+  {
+    "id": "1221",
+    "key": "Yunli",
+    "name": "운리",
+    "group": "선주",
+    "image": "/characters/1221.png",
+    "aliases": [
+      "운리",
+      "Yunli"
+    ],
+    "source": "C033"
+  },
+  {
+    "id": "1211",
+    "key": "Bailu",
+    "name": "백로",
+    "group": "선주",
+    "image": "/characters/1211.png",
+    "aliases": [
+      "백로",
+      "Bailu"
+    ],
+    "source": "C034"
+  },
+  {
+    "id": "1203",
+    "key": "Luocha",
+    "name": "나찰",
+    "group": "선주",
+    "image": "/characters/1203.png",
+    "aliases": [
+      "나찰",
+      "Luocha"
+    ],
+    "source": "C035"
+  },
+  {
+    "id": "1206",
+    "key": "Sushang",
+    "name": "소상",
+    "group": "선주",
+    "image": "/characters/1206.png",
+    "aliases": [
+      "소상",
+      "Sushang"
+    ],
+    "source": "C036"
+  },
+  {
+    "id": "1207",
+    "key": "Yukong",
+    "name": "어공",
+    "group": "선주",
+    "image": "/characters/1207.png",
+    "aliases": [
+      "어공",
+      "Yukong"
+    ],
+    "source": "C037"
+  },
+  {
+    "id": "1212",
+    "key": "Jingliu",
+    "name": "경류",
+    "group": "선주",
+    "image": "/characters/1212.png",
+    "aliases": [
+      "경류",
+      "Jingliu"
+    ],
+    "source": "C038"
+  },
+  {
+    "id": "1217",
+    "key": "Huohuo",
+    "name": "곽향",
+    "group": "선주",
+    "image": "/characters/1217.png",
+    "aliases": [
+      "곽향",
+      "Huohuo"
+    ],
+    "source": "C039"
+  },
+  {
+    "id": "1215",
+    "key": "Hanya",
+    "name": "한아",
+    "group": "선주",
+    "image": "/characters/1215.png",
+    "aliases": [
+      "한아",
+      "Hanya"
+    ],
+    "source": "C040"
+  },
+  {
+    "id": "1214",
+    "key": "Xueyi",
+    "name": "설의",
+    "group": "선주",
+    "image": "/characters/1214.png",
+    "aliases": [
+      "설의",
+      "Xueyi"
+    ],
+    "source": "C041"
+  },
+  {
+    "id": "1210",
+    "key": "Guinaifen",
+    "name": "계네빈",
+    "group": "선주",
+    "image": "/characters/1210.png",
+    "aliases": [
+      "계네빈",
+      "Guinaifen"
+    ],
+    "source": "C042"
+  },
+  {
+    "id": "1220",
+    "key": "Feixiao",
+    "name": "비소",
+    "group": "선주",
+    "image": "/characters/1220.png",
+    "aliases": [
+      "비소",
+      "Feixiao"
+    ],
+    "source": "C043"
+  },
+  {
+    "id": "1218",
+    "key": "Jiaoqiu",
+    "name": "초구",
+    "group": "선주",
+    "image": "/characters/1218.png",
+    "aliases": [
+      "초구",
+      "Jiaoqiu"
+    ],
+    "source": "C044"
+  },
+  {
+    "id": "1223",
+    "key": "Moze",
+    "name": "맥택",
+    "group": "선주",
+    "image": "/characters/1223.png",
+    "aliases": [
+      "맥택",
+      "Moze"
+    ],
+    "source": "C045"
+  },
+  {
+    "id": "1222",
+    "key": "Lingsha",
+    "name": "영사",
+    "group": "선주",
+    "image": "/characters/1222.png",
+    "aliases": [
+      "영사",
+      "Lingsha"
+    ],
+    "source": "C046"
+  },
+  {
+    "id": "1112",
+    "key": "Topaz_%26_Numby",
+    "name": "토파즈&복순이",
+    "group": "컴퍼니",
+    "image": "/characters/1112.png",
+    "aliases": [
+      "토파즈&복순이",
+      "Topaz %26 Numby",
+      "토파즈",
+      "토파즈 & 복순이",
+      "Topaz",
+      "Topaz & Numby"
+    ],
+    "source": "C047"
+  },
+  {
+    "id": "1304",
+    "key": "Aventurine",
+    "name": "어벤츄린",
+    "group": "컴퍼니",
+    "image": "/characters/1304.png",
+    "aliases": [
+      "어벤츄린",
+      "Aventurine"
+    ],
+    "source": "C048"
+  },
+  {
+    "id": "1314",
+    "key": "Jade",
+    "name": "제이드",
+    "group": "컴퍼니",
+    "image": "/characters/1314.png",
+    "aliases": [
+      "제이드",
+      "Jade"
+    ],
+    "source": "C049"
+  },
+  {
+    "id": "1313",
+    "key": "Sunday",
+    "name": "선데이",
+    "group": "페나코니·은하열차 관련",
+    "image": "/characters/1313.png",
+    "aliases": [
+      "선데이",
+      "Sunday"
+    ],
+    "source": "C050"
+  },
+  {
+    "id": "1309",
+    "key": "Robin",
+    "name": "로빈",
+    "group": "페나코니",
+    "image": "/characters/1309.png",
+    "aliases": [
+      "로빈",
+      "Robin"
+    ],
+    "source": "C051"
+  },
+  {
+    "id": "1307",
+    "key": "Black_Swan",
+    "name": "블랙 스완",
+    "group": "기억의 정원",
+    "image": "/characters/1307.png",
+    "aliases": [
+      "블랙 스완",
+      "Black Swan"
+    ],
+    "source": "C052"
+  },
+  {
+    "id": "1308",
+    "key": "Acheron",
+    "name": "아케론",
+    "group": "페나코니·방랑자",
+    "image": "/characters/1308.png",
+    "aliases": [
+      "아케론",
+      "Acheron"
+    ],
+    "source": "C053"
+  },
+  {
+    "id": "1306",
+    "key": "Sparkle",
+    "name": "스파클",
+    "group": "가면의 우인",
+    "image": "/characters/1306.png",
+    "aliases": [
+      "스파클",
+      "Sparkle"
+    ],
+    "source": "C054"
+  },
+  {
+    "id": "1301",
+    "key": "Gallagher",
+    "name": "갤러거",
+    "group": "페나코니",
+    "image": "/characters/1301.png",
+    "aliases": [
+      "갤러거",
+      "Gallagher"
+    ],
+    "source": "C055"
+  },
+  {
+    "id": "1312",
+    "key": "Misha",
+    "name": "미샤",
+    "group": "페나코니",
+    "image": "/characters/1312.png",
+    "aliases": [
+      "미샤",
+      "Misha"
+    ],
+    "source": "C056"
+  },
+  {
+    "id": "1317",
+    "key": "Rappa",
+    "name": "라파",
+    "group": "갤럭시 레인저",
+    "image": "/characters/1317.png",
+    "aliases": [
+      "라파",
+      "Rappa"
+    ],
+    "source": "C057"
+  },
+  {
+    "id": "1315",
+    "key": "Boothill",
+    "name": "부트힐",
+    "group": "갤럭시 레인저",
+    "image": "/characters/1315.png",
+    "aliases": [
+      "부트힐",
+      "Boothill"
+    ],
+    "source": "C058"
+  },
+  {
+    "id": "1302",
+    "key": "Argenti",
+    "name": "아젠티",
+    "group": "미의 기사",
+    "image": "/characters/1302.png",
+    "aliases": [
+      "아젠티",
+      "Argenti"
+    ],
+    "source": "C059"
+  },
+  {
+    "id": "1402",
+    "key": "Aglaea",
+    "name": "아글라이아",
+    "group": "앰포리어스",
+    "image": "/characters/1402.png",
+    "aliases": [
+      "아글라이아",
+      "Aglaea"
+    ],
+    "source": "C060"
+  },
+  {
+    "id": "1403",
+    "key": "Tribbie",
+    "name": "트리비",
+    "group": "앰포리어스",
+    "image": "/characters/1403.png",
+    "aliases": [
+      "트리비",
+      "Tribbie"
+    ],
+    "source": "C061"
+  },
+  {
+    "id": "1404",
+    "key": "Mydei",
+    "name": "마이데이",
+    "group": "앰포리어스",
+    "image": "/characters/1404.png",
+    "aliases": [
+      "마이데이",
+      "Mydei"
+    ],
+    "source": "C062"
+  },
+  {
+    "id": "1407",
+    "key": "Castorice",
+    "name": "카스토리스",
+    "group": "앰포리어스",
+    "image": "/characters/1407.png",
+    "aliases": [
+      "카스토리스",
+      "Castorice"
+    ],
+    "source": "C063"
+  },
+  {
+    "id": "1405",
+    "key": "Anaxa",
+    "name": "아낙사",
+    "group": "앰포리어스",
+    "image": "/characters/1405.png",
+    "aliases": [
+      "아낙사",
+      "Anaxa"
+    ],
+    "source": "C064"
+  },
+  {
+    "id": "1409",
+    "key": "Hyacine",
+    "name": "히아킨",
+    "group": "앰포리어스",
+    "image": "/characters/1409.png",
+    "aliases": [
+      "히아킨",
+      "Hyacine"
+    ],
+    "source": "C065"
+  },
+  {
+    "id": "1406",
+    "key": "Cipher",
+    "name": "사이퍼",
+    "group": "앰포리어스",
+    "image": "/characters/1406.png",
+    "aliases": [
+      "사이퍼",
+      "Cipher"
+    ],
+    "source": "C066"
+  },
+  {
+    "id": "1408",
+    "key": "Phainon",
+    "name": "파이논",
+    "group": "앰포리어스",
+    "image": "/characters/1408.png",
+    "aliases": [
+      "파이논",
+      "Phainon"
+    ],
+    "source": "C067"
+  },
+  {
+    "id": "1410",
+    "key": "Hysilens",
+    "name": "히실렌스",
+    "group": "앰포리어스",
+    "image": "/characters/1410.png",
+    "aliases": [
+      "히실렌스",
+      "Hysilens"
+    ],
+    "source": "C068"
+  },
+  {
+    "id": "1412",
+    "key": "Cerydra",
+    "name": "케리드라",
+    "group": "앰포리어스",
+    "image": "/characters/1412.png",
+    "aliases": [
+      "케리드라",
+      "Cerydra"
+    ],
+    "source": "C069"
+  },
+  {
+    "id": "1413",
+    "key": "Evernight",
+    "name": "에버나이트",
+    "group": "앰포리어스·Mar. 7th 관련",
+    "image": "/characters/1413.png",
+    "aliases": [
+      "에버나이트",
+      "Evernight"
+    ],
+    "source": "C070"
+  },
+  {
+    "id": "1415",
+    "key": "Cyrene",
+    "name": "키레네",
+    "group": "앰포리어스",
+    "image": "/characters/1415.png",
+    "aliases": [
+      "키레네",
+      "Cyrene"
+    ],
+    "source": "C071"
+  },
+  {
+    "id": "1502",
+    "key": "Yao_Guang",
+    "name": "효광",
+    "group": "선주·4.x 관련",
+    "image": "/characters/1502.png",
+    "aliases": [
+      "효광",
+      "Yao Guang"
+    ],
+    "source": "C072"
+  }
+]
