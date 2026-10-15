@@ -14,9 +14,9 @@ try{
  await page.getByText('개의 신호 · 1 /',{exact:false}).waitFor();
  await page.locator('.world-nav').getByRole('button',{name:'벨로보그',exact:false}).click();
  assert.equal(await page.locator('.post-card').count(),8);
- await page.getByRole('textbox',{name:'게시글 검색'}).fill('과묵한 안내원');
+ await page.getByRole('textbox',{name:'게시글 검색'}).fill('안내도 초안을 검토');
  await page.locator('.post-card').click();
- await page.getByText('사용한 밈: 쓰레기통 집착',{exact:false}).waitFor();
+ await page.getByText('사용한 밈: 게파드의 그림 실력',{exact:false}).waitFor();
  await page.getByRole('button',{name:'게시판으로 돌아가기'}).click();
  await page.getByRole('button',{name:'검색 지우기'}).click();
  await page.locator('.profile-button').click();

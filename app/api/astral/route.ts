@@ -27,6 +27,13 @@ async function init(){
    db().prepare("INSERT OR IGNORE INTO astral_users(owner,character,created,seen) SELECT owner,character,MIN(created),MAX(created) FROM astral_comments WHERE owner!='__admin__' GROUP BY owner"),
    db().prepare("INSERT OR IGNORE INTO astral_users(owner,character,created,seen) SELECT owner,character,?,? FROM astral_sessions WHERE expires>? ORDER BY expires ASC").bind(Date.now(),Date.now(),Date.now())
   ]);
+  const retired="SELECT id FROM astral_posts WHERE seeded=1 AND owner='editorial' AND character IN ('8001','8002')";
+  await db().batch([
+   db().prepare(`UPDATE astral_reports SET status='resolved' WHERE post IN (${retired}) AND status='open'`),
+   db().prepare(`DELETE FROM astral_comments WHERE post IN (${retired})`),
+   db().prepare(`DELETE FROM astral_likes WHERE post IN (${retired})`),
+   db().prepare(`DELETE FROM astral_posts WHERE id IN (${retired})`)
+  ]);
   await db().batch(seedPosts.map((p,i)=>db().prepare('INSERT OR IGNORE INTO astral_posts (id,owner,character,region,at,title,body,memes,source,created,seeded) VALUES (?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(id) DO UPDATE SET at=excluded.at,title=excluded.title,body=excluded.body WHERE astral_posts.seeded=1 AND astral_posts.owner=\'editorial\'').bind(p.id,'editorial',p.character,p.region,p.at,p.title,p.body,JSON.stringify(p.memes),p.source,1700000000000+i*60000)));
  })().catch(e=>{ready=undefined;throw e});
  await ready;
@@ -44,17 +51,17 @@ async function limit(req:Request,kind:string,max:number){
  if(row!.count>max)throw new Error('잠시 후 다시 시도해 주세요. 요청이 너무 빠릅니다.');
 }
 function publicPost(p:any,me:Session|null){const {owner,...rest}=p;return {...rest,memes:JSON.parse(p.memes),owned:!!me&&owner===me.owner&&!p.seeded}}
-const selectPost='SELECT p.*, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id AND c.at<=?) AS comments FROM astral_posts p';
+const selectPost='SELECT p.*, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments FROM astral_posts p';
 export async function GET(req:Request){try{
  await init();const url=new URL(req.url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
  if(id){
-  const p=await db().prepare(selectPost+' WHERE p.id=? AND p.at<=? AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)').bind(at,id,at).first<any>();
+  const p=await db().prepare(selectPost+' WHERE p.id=? AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)').bind(id,at).first<any>();
   if(!p)return json({error:'이 시점에는 볼 수 없는 게시글입니다.'},404);
-  const cs=await db().prepare('SELECT id,character,body,created,owner FROM astral_comments WHERE post=? AND at<=? ORDER BY created,id').bind(id,at).all<any>();
+  const cs=await db().prepare('SELECT id,character,body,created,owner FROM astral_comments WHERE post=? ORDER BY created,id').bind(id).all<any>();
   const liked=me?!!await db().prepare('SELECT 1 FROM astral_likes WHERE post=? AND owner=?').bind(id,me.owner).first():false;
   return json({post:publicPost(p,me),comments:cs.results.map(({owner,...c})=>({...c,owned:owner===me?.owner})),liked});
  }
- const posts=await db().prepare(selectPost+' WHERE p.at<=? AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) ORDER BY p.created DESC LIMIT 1000').bind(at,at).all<any>();
+ const posts=await db().prepare(selectPost+' WHERE (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) ORDER BY p.created DESC LIMIT 1000').bind(at).all<any>();
  return json({posts:posts.results.map(p=>publicPost(p,me)),user:me?{character:me.character,admin:!!me.admin}:null});
  }catch(e){return json({error:e instanceof Error&&/시점/.test(e.message)?e.message:'통신을 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'},500)}}
 export async function POST(req:Request){try{
@@ -80,9 +87,11 @@ export async function POST(req:Request){try{
  }
  if(!me)return json({error:'먼저 사용할 캐릭터를 선택해 주세요.'},401);
  if(!me.admin)await db().prepare('UPDATE astral_users SET seen=? WHERE owner=?').bind(now,me.owner).run();
- const at=checkpoint(b.at);
+ const unrestricted=b.action==='save'&&['general','notice'].includes(b.region);
+ const at=unrestricted?0:checkpoint(b.at);
  if(b.action==='save'){
-  const title=field(b.title,100),body=field(b.body,6000),region=regions.find(r=>r.id===b.region);
+  const title=field(b.title,100),body=field(b.body,6000),region=unrestricted?{id:b.region,start:0}:regions.find(r=>r.id===b.region);
+  if(b.region==='notice'&&!me.admin)return json({error:'공지는 관리자만 작성할 수 있습니다.'},403);
   if(!region||at<region.start)return json({error:'지역과 게시글 시점을 맞춰 주세요.'},400);
   await limit(req,'write',20);
   if(b.id){
@@ -92,13 +101,13 @@ export async function POST(req:Request){try{
   }
   const id=crypto.randomUUID();await db().prepare('INSERT INTO astral_posts (id,owner,character,region,at,title,body,created) VALUES (?,?,?,?,?,?,?,?)').bind(id,me.owner,me.character,region.id,at,title,body,now).run();return json({id});
  }
- const id=field(b.id,100),p=await db().prepare('SELECT owner,seeded,at,title,body,character FROM astral_posts WHERE id=? AND at<=? AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=astral_posts.id)').bind(id,at).first<any>();
+ const id=field(b.id,100),p=await db().prepare('SELECT owner,seeded,at,title,body,character FROM astral_posts WHERE id=? AND (seeded=0 OR at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=astral_posts.id)').bind(id,at).first<any>();
  if(!p)return json({error:'게시글을 찾을 수 없거나 현재 시점에서 볼 수 없어요.'},404);
  if(b.action==='report'){
   await limit(req,'report',5);
   const kind=b.kind;if(kind!=='post'&&kind!=='comment')return json({error:'신고 대상을 확인해 주세요.'},400);
   const target=kind==='post'?id:field(b.commentId,100);
-  const item=kind==='post'?p:await db().prepare('SELECT owner,character,body FROM astral_comments WHERE id=? AND post=? AND at<=?').bind(target,id,at).first<any>();
+  const item=kind==='post'?p:await db().prepare('SELECT owner,character,body FROM astral_comments WHERE id=? AND post=?').bind(target,id).first<any>();
   if(!item)return json({error:'신고 대상을 찾을 수 없어요.'},404);
   await db().prepare('INSERT OR IGNORE INTO astral_reports(id,reporter,kind,target,post,owner,character,title,body,reason,created) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),me.owner,kind,target,id,item.owner,item.character,p.title,item.body,field(b.reason,1000),now).run();
   return json({ok:true});

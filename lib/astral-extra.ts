@@ -1,6 +1,5 @@
 // Original fan writing. Late Amphoreus voices are imagined archival notes, not claims of survival or live posting.
 export const extraRows:[string,string,number,string,string][]=[
- ['8001','herta',2,'짐은 가벼운데 궁금한 것은 많아','여행 준비를 끝냈어. 짐은 생각보다 적네. 아직 모르는 것이 이렇게 많은데, 그건 가방에 넣지 않아도 되는 모양이야. 다음 정거장에서는 하나쯤 알아 오려고.'],
  ['Dan_Heng','herta',2,'자료실 이용에 관해','읽은 기록은 원래 자리에 돌려놓아 줘. 기억나는 내용만으로 찾으려면 시간이 더 걸려. 특히 표지가 파란 책이라는 설명은 도움이 안 돼. 여기에는 그런 책이 많아.'],
  ['Kafka','luofu',7,'기다리는 동안의 작은 선택','기다림이 지루해? 그럼 오늘 들었던 소리 중 하나만 기억해 봐. 급히 지나칠 때에는 듣지 못하는 것들이 있거든. 나중에 어떤 소리였는지 알려 줘.'],
  ['Silver_Wolf','herta',9,'접속 전에 패치 노트부터 읽어','버튼이 바뀌었다고 버그 신고부터 넣지 마. 설명을 안 읽은 건 시스템 문제가 아니니까. 새 규칙으로 한 판 해 봐. 그러고도 이상하면 내가 볼게.'],

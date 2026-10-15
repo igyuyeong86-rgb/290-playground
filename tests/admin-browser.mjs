@@ -21,7 +21,7 @@ try{
  await ap.goto(base+'/admin');await ap.getByRole('heading',{name:'관리자 로그인이 필요합니다'}).waitFor();
  await ap.goto(base,{waitUntil:'networkidle'});await ap.locator('.profile-button').click();
  assert.equal(await ap.getByRole('button',{name:/게시판의 에이온즈/}).count(),0);
- await ap.getByLabel('캐릭터 검색').fill('공병후는게이다');await ap.getByRole('button',{name:/게시판의 에이온즈/}).click();
+ await ap.getByLabel('캐릭터 검색').fill('정실은반디');await ap.getByRole('button',{name:/게시판의 에이온즈/}).click();
  await ap.getByLabel('관리자 비밀번호').fill('incorrect');await ap.getByRole('button',{name:'관리자로 로그인'}).click();await ap.getByRole('alert').filter({hasText:'비밀번호가 올바르지 않습니다.'}).waitFor();
  await ap.getByLabel('관리자 비밀번호').fill(password);await ap.getByRole('button',{name:'관리자로 로그인'}).click();await ap.locator('dialog').waitFor({state:'hidden'});
  await ap.getByRole('link',{name:'관리 페이지',exact:true}).click();await ap.getByText('관리자 검증용 게시글',{exact:true}).waitFor();
