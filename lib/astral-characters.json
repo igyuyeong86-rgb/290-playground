@@ -895,5 +895,133 @@
       "Yao Guang"
     ],
     "source": "C072"
+  },
+  {
+    "id": "1501",
+    "key": "Sparxie",
+    "name": "스파키",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1501.png",
+    "aliases": [
+      "스파키",
+      "Sparxie"
+    ],
+    "source": "V4520"
+  },
+  {
+    "id": "1504",
+    "key": "Ashveil",
+    "name": "애쉬베일",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1504.png",
+    "aliases": [
+      "애쉬베일",
+      "Ashveil"
+    ],
+    "source": "V4521"
+  },
+  {
+    "id": "1506",
+    "key": "Silver_Wolf_LV999",
+    "name": "은랑 LV.999",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1506.png",
+    "aliases": [
+      "은랑 LV.999",
+      "Silver Wolf LV999"
+    ],
+    "source": "V4522"
+  },
+  {
+    "id": "1505",
+    "key": "Evanescia",
+    "name": "에바네시아",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1505.png",
+    "aliases": [
+      "에바네시아",
+      "Evanescia"
+    ],
+    "source": "V4523"
+  },
+  {
+    "id": "1507",
+    "key": "Mortenax_Blade",
+    "name": "천야·블레이드",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1507.png",
+    "aliases": [
+      "천야·블레이드",
+      "천야•블레이드",
+      "천야 블레이드",
+      "Mortenax Blade"
+    ],
+    "source": "V4524"
+  },
+  {
+    "id": "1510",
+    "key": "Himeko_Nova",
+    "name": "히메코·노바",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1510.png",
+    "aliases": [
+      "히메코·노바",
+      "히메코•노바",
+      "히메코 노바",
+      "Himeko Nova"
+    ],
+    "source": "V4525"
+  },
+  {
+    "id": "1512",
+    "key": "Robin_Summeretto",
+    "name": "로빈·서머레토",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1512.png",
+    "aliases": [
+      "로빈·서머레토",
+      "로빈•서머레토",
+      "로빈 서머레토",
+      "Robin Summeretto"
+    ],
+    "source": "V4526"
+  },
+  {
+    "id": "1513",
+    "key": "Aventurine_Waveflair",
+    "name": "어벤츄린·웨이브",
+    "group": "4.x·이상 낙원과 그 너머",
+    "image": "/characters/1513.png",
+    "aliases": [
+      "어벤츄린·웨이브",
+      "어벤츄린•웨이브",
+      "어벤츄린 웨이브",
+      "Aventurine Waveflair"
+    ],
+    "source": "V4527"
+  },
+  {
+    "id": "1508",
+    "key": "Rin_Tohsaka",
+    "name": "토오사카 린",
+    "group": "이세계·콜라보",
+    "image": "/characters/1508.png",
+    "aliases": [
+      "토오사카 린",
+      "Rin Tohsaka"
+    ],
+    "source": "V4528"
+  },
+  {
+    "id": "1509",
+    "key": "Gilgamesh",
+    "name": "길가메시",
+    "group": "이세계·콜라보",
+    "image": "/characters/1509.png",
+    "aliases": [
+      "길가메시",
+      "Gilgamesh"
+    ],
+    "source": "V4529"
   }
 ]

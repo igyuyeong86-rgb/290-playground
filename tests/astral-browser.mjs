@@ -16,7 +16,7 @@ try{
  assert.equal(await page.locator('.post-card').count(),8);
  await page.getByRole('textbox',{name:'게시글 검색'}).fill('안내도 초안을 검토');
  await page.locator('.post-card').click();
- await page.getByText('사용한 밈: 게파드의 그림 실력',{exact:false}).waitFor();
+ assert.equal(await page.locator('.meme-note').count(),0);
  await page.getByRole('button',{name:'게시판으로 돌아가기'}).click();
  await page.getByRole('button',{name:'검색 지우기'}).click();
  await page.locator('.profile-button').click();

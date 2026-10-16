@@ -15,17 +15,17 @@ const module=async(source)=>import('data:text/javascript;base64,'+Buffer.from(ts
 globalThis.__extra=await module(readFileSync('lib/astral-extra.ts','utf8'));
 globalThis.__data=await module(readFileSync('lib/astral-data.ts','utf8').replace("import storyPosts from './astral-story-posts.json';",'const storyPosts='+readFileSync('lib/astral-story-posts.json','utf8')+';').replace("import {extraRows} from './astral-extra';",'const {extraRows}=globalThis.__extra;').replace("import roster from './astral-characters.json';",'const roster='+readFileSync('lib/astral-characters.json','utf8')+';'));
 const {characters,seedPosts,regions,checkpoints}=globalThis.__data;
-assert.equal(characters.length,73);assert.equal(new Set(characters.map(c=>c.id)).size,73);assert.ok(seedPosts.length>80);assert.equal(new Set(seedPosts.map(p=>p.character)).size,71);assert.equal(new Set(seedPosts.map(p=>p.id)).size,seedPosts.length);
+assert.equal(characters.length,83);assert.equal(new Set(characters.map(c=>c.id)).size,83);assert.ok(seedPosts.length>80);assert.equal(new Set(seedPosts.map(p=>p.character)).size,81);assert.equal(new Set(seedPosts.map(p=>p.id)).size,seedPosts.length);
 for(const c of characters)assert.ok(existsSync('public'+c.image));
 for(let at=0;at<checkpoints.length;at++){assert.ok(seedPosts.some(p=>p.at===at));for(const p of seedPosts.filter(p=>p.at===at)){assert.ok(characters.some(c=>c.id===p.character));assert.ok(regions.some(r=>r.id===p.region&&r.start<=p.at))}}
 const routeSource=readFileSync('app/api/astral/route.ts','utf8').replace("import { env } from 'cloudflare:workers';",'const env=globalThis.__env;').replace("import {characters,regions,seedPosts,checkpoints} from '../../../lib/astral-data';",'const {characters,regions,seedPosts,checkpoints}=globalThis.__data;');
 let {GET,POST}=await module(routeSource);
 const origin='https://astral.test';
-async function get(at=21,cookie='',id=''){const r=await GET(new Request(`${origin}/api/astral?at=${at}${id?'&id='+id:''}`,{headers:{cookie}}));return {status:r.status,data:await r.json()}}
+async function get(at=31,cookie='',id=''){const r=await GET(new Request(`${origin}/api/astral?at=${at}${id?'&id='+id:''}`,{headers:{cookie}}));return {status:r.status,data:await r.json()}}
 async function post(body,cookie='',ip='test'){const r=await POST(new Request(origin+'/api/astral',{method:'POST',headers:{origin,cookie,'cf-connecting-ip':ip},body:JSON.stringify({at:21,...body})}));return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0],header:r.headers.get('set-cookie')}}
 assert.equal((await get()).data.posts.length,seedPosts.length);
-assert.equal(seedPosts.length,105);assert.ok(!seedPosts.some(p=>['8001','8002'].includes(p.character)));
-const additions=JSON.parse(readFileSync('lib/astral-story-posts.json','utf8'));assert.equal(additions.length,22);
+assert.equal(seedPosts.length,137);assert.ok(!seedPosts.some(p=>['8001','8002'].includes(p.character)));
+const additions=JSON.parse(readFileSync('lib/astral-story-posts.json','utf8'));assert.equal(additions.length,54);
 for(const p of additions){assert.equal((await get(Math.max(0,p.at-1),'',p.id)).status,p.at?404:200);assert.equal((await get(p.at,'',p.id)).status,200)}
 // Upgrade an existing DB: retire only editorial Trailblazer rows and their dependent data.
 for(const [id,owner,seeded] of [['signal-004','editorial',1],['profile-8001','editorial',1],['visitor-retained','visitor',0]])sql.prepare('INSERT INTO astral_posts(id,owner,character,region,at,title,body,created,seeded) VALUES (?,?,?, ?,21,?,?,0,?)').run(id,owner,'8001','herta','Legacy title','Legacy body',seeded);
@@ -70,7 +70,7 @@ await post({action:'comment',id,body:'cascade',at:17},b.cookie);await post({acti
 assert.equal((await post({action:'delete',id},switched.cookie)).status,200);assert.equal((await get(17,'',id)).status,404);
 assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM astral_comments').get().n,0);assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM astral_likes').get().n,0);
 let limited;for(let i=0;i<31;i++)limited=await post({action:'select',character:'8002'},'','limited');assert.match(limited.data.error,/잠시/);
-console.log('PASS: 73 profile assets, 71 non-Trailblazer authors covered, 22 timeline boundaries, idempotent initialization, anonymous sessions, same-character ownership isolation, identity switching, edits, seed protection, comments, visitor comments across all story points, likes, CSRF, cascades and request limiting.');
+console.log('PASS: 83 profile assets, 81 non-Trailblazer authors covered, 32 timeline boundaries, idempotent initialization, anonymous sessions, same-character ownership isolation, identity switching, edits, seed protection, comments, visitor comments across all story points, likes, CSRF, cascades and request limiting.');
 console.log('SEEDS',seedPosts.length);
 // Admin/report regression: API authorization is checked independently of UI visibility.
 const secret='test-'+crypto.randomUUID(),nextSecret='next-'+crypto.randomUUID();
@@ -173,4 +173,20 @@ delete globalThis.__env.MEDIA;
 assert.equal((await post({action:'save',title:'No binding',body:'No',region:'general',media:payload},mc,'missing-bucket')).status,400);
 assert.equal((await post({action:'save',title:'Video only',body:'Yes',region:'general',media:{images:[],video:'https://www.youtube.com/shorts/dQw4w9WgXcQ'}},mc,'video')).status,200);
 console.log('PASS: notice-only feed, notice report denial, reply reports, image ownership, image/count/size validation, quota, upload failure cleanup, edits/deletes/moderation cleanup, private media serving, YouTube validation, missing R2 fallback.');
+
+
+// Expansion must preserve timeline gating while allowing every new profile.
+for(const id of ['1501','1504','1505','1506','1507','1508','1509','1510','1512','1513']){
+ assert.ok(characters.some(c=>c.id===id));
+ const selected=await post({action:'select',character:id},'', 'expansion-'+id);assert.equal(selected.status,200);
+}
+for(const p of seedPosts.filter(p=>p.id.startsWith('v45-signal-'))){
+ assert.notEqual((await get(p.at-1,'',p.id)).status,200);
+ assert.equal((await get(p.at,'',p.id)).status,200);
+}
+assert.equal(checkpoints.length,32);
+assert.equal(globalThis.__data.transmissionAt(31).character.id,'1512');
+assert.equal(globalThis.__data.transmissionAt(0).character.id,'1013');
+console.log('PASS: 4.5 character selection, editorial time gates, 32 checkpoints, dynamic banners');
+
 sql.close();

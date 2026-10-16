@@ -10,6 +10,7 @@ export const regions = [
   {id:'penacony',start:10,name:'페나코니',en:'PENACONY',short:'페나코니',color:'#dfb5e8',icon:'✧',description:'좋은꿈의 불빛 아래, 아직 전하지 못한 이야기.',phases:['황금의 순간 첫 방문','꿈의 진실을 마주할 때','축제 사건 이후']},
   {id:'amphoreus',start:16,name:'앰포리어스',en:'AMPHOREUS',short:'앰포리어스',color:'#e6cb8a',icon:'☼',description:'영원의 땅에서 함께 써 내려가는 불을 쫓는 여정.',phases:['황금의 후예와 첫 만남','오크마 체류','불씨 여정 초입']},
   {id:'planarcadia',start:19,name:'이상 낙원',en:'PLANARCADIA',short:'이상 낙원',color:'#e99bba',icon:'✺',description:'웃음과 소문이 교차하는 도시. 다음 이야기는 어디로?',phases:['낙원에 첫발을','도시 탐색','환월 게임을 앞두고']},
+  {id:'astropolis',start:31,name:'아스트로폴리스',en:'ASTROPOLIS',short:'아스트로폴리스',color:'#8bdfdf',icon:'≈',description:'바닷바람과 새로운 선율 사이로 도착한 동료들의 안부.',phases:['해변의 교류 · 4.5']},
 ];
 const timeline:[string,string][]=[
  ['herta','군단 습격 이후'],['herta','시뮬레이션 우주 연구'],['herta','열차 출발 준비'],
@@ -20,6 +21,11 @@ const timeline:[string,string][]=[
  ['luofu','연무의식 시기 · 2.4~2.5'],['penacony','페나코니 재방문 · 2.6'],['luofu','다시 잇는 인연 · 2.7'],
  ['amphoreus','오크마와 여정의 시작 · 3.0'],['amphoreus','여정 중의 기록 · 3.2~3.4'],['amphoreus','후반 기억 아카이브 · 3.7'],
  ['planarcadia','낙원에 첫발을 · 4.0'],['planarcadia','도시 탐색 · 4.0'],['planarcadia','환월 게임을 앞두고 · 4.0'],
+ ['planarcadia','축제의 초대 · 4.1'],['planarcadia','사건을 따라가는 기록 · 4.1'],
+ ['planarcadia','환월 게임의 새 국면 · 4.2'],['planarcadia','무대 곁의 이야기 · 4.2'],
+ ['planarcadia','새로운 형태의 교류 · 4.3'],['planarcadia','잠시 멈춘 자리 · 4.3'],
+ ['planarcadia','히메코·노바의 안부 · 4.4'],['planarcadia','이세계에서 온 손님 · 4.4'],
+ ['planarcadia','낙원에서 이어지는 소식 · 4.5'],['astropolis','해변의 교류 · 4.5'],
 ];
 export const checkpoints=timeline.map(([region,phase],at)=>({at,region,label:`${regions.find(r=>r.id===region)!.name} · ${phase}`}));
 export const memeNames:Record<string,string>={M01:'쓰레기통 집착',M02:'은하 방망이 협객',M03:'빙글뱅글 · 쿠루쿠루',M04:'더 많은 헤르타!',M05:'길치 아케론',M06:'게파드의 그림 실력',M07:'청작의 월급 루팡',M08:'부트힐의 순화된 욕설'};
@@ -66,3 +72,20 @@ export const seedPosts:Seed[]=[...storyPosts,...firstPosts,...extraRows.map(([ke
 export type Post = Seed & {created:number;likes:number;comments:number;seeded:number;owned:boolean;media?:{images:string[];video:string}};
 export type Comment={id:string;character:string;body:string;created:number;owned:boolean;media?:{images:string[];video:string}};
 export type Visitor={character:string;admin?:boolean};
+
+// Banner messages are editorial fan writing, not quotations from the game.
+export function transmissionAt(at:number,regionId?:string){
+ const region=regions.find(r=>r.id===regionId)||regions.find(r=>r.id===checkpoints[at].region)!;
+ const choices:Record<string,[string,string]>={
+  herta:['1013','흥미로운 이야기가 있으면 남겨. 시간이 나면 읽어 볼 테니까.'],
+  belobog:['1101','이 도시에서 만난 이야기를 들려줘. 작은 목소리도 놓치지 않고 듣고 싶어.'],
+  luofu:['1220','먼 길 오느라 수고했어. 잠깐 쉬면서 그동안의 이야기를 들려줄래?'],
+  penacony:['1310','오늘은 어떤 곳을 걸었어? 괜찮다면, 네 이야기도 듣고 싶어.'],
+  amphoreus:['1402','먼 길을 오신 분들께, 잠시 숨을 고를 자리를 마련했습니다.'],
+  planarcadia:['1501','낙원에 오신 여러분, 오늘의 이야기를 들려주세요!'],
+  astropolis:['1512','바닷바람을 따라 새로운 소리가 들려오네요. 잠시 함께 걸어 볼까요?'],
+ };
+ const [id,message]=choices[region.id];
+ const character=characterById(id)!;
+ return {region,character,message,image:id==='1013'?'/characters/herta-portrait.png':'/portraits/'+id+'.png'};
+}
