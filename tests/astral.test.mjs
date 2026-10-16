@@ -242,4 +242,74 @@ assert.equal(limited.status,400);assert.match(limited.data.error,/잠시/);
 console.log('PASS: account registration/adoption, hashing, login, private IDs, per-author names, cross-device ownership, credentials, duplicate IDs, session invalidation, logout, blocking, CSRF, rate limit');
 
 }
+// Cloudinary: use a deterministic mock service; never contact a real account.
+{
+ const savedFetch=globalThis.fetch,cloudObjects=new Map(),calls=[];
+ Object.assign(globalThis.__env,{CLOUDINARY_CLOUD_NAME:'fixture-cloud',CLOUDINARY_API_KEY:'fixture-key',CLOUDINARY_API_SECRET:'fixture-secret'});
+ let failUpload=false,failDelete=false;
+ globalThis.fetch=async(url,options)=>{
+  const u=new URL(url);calls.push(u);
+  if(u.hostname==='res.cloudinary.com'){
+   assert.ok(u.pathname.startsWith('/fixture-cloud/image/upload/astral/'));
+   const id=u.pathname.split('/image/upload/')[1].replace(/\.webp$/,'');
+   return cloudObjects.has(id)?new Response(cloudObjects.get(id),{headers:{'Content-Type':'image/webp'}}):new Response('',{status:404});
+  }
+  assert.equal(u.hostname,'api.cloudinary.com');assert.equal(options.method,'POST');
+  const form=options.body;assert.equal(form.get('api_key'),'fixture-key');assert.equal(form.get('api_secret'),null);
+  const entries=[...form.entries()].filter(([k])=>!['file','api_key','signature'].includes(k)).sort(([a],[b])=>a.localeCompare(b));
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(entries.map(([k,v])=>`${k}=${v}`).join('&')+'fixture-secret'));
+  assert.equal(form.get('signature'),Buffer.from(digest).toString('hex'));
+  const id=form.get('public_id');assert.match(id,/^astral\/[0-9a-f-]{36}$/);
+  if(u.pathname.endsWith('/upload')){
+   if(failUpload)return Response.json({error:{message:'fixture-secret must not leak'}},{status:401});
+   assert.equal(form.get('overwrite'),'false');assert.equal(form.get('file').type,'image/webp');
+   cloudObjects.set(id,new Uint8Array(await form.get('file').arrayBuffer()));
+   return Response.json({public_id:id,format:'webp'});
+  }
+  assert.ok(u.pathname.endsWith('/destroy'));assert.equal(form.get('invalidate'),'true');
+  if(failDelete)return new Response('',{status:503});
+  return Response.json({result:cloudObjects.delete(id)?'ok':'not found'});
+ };
+ let n=0;const send=(body,cookie)=>post(body,cookie,'cloud-'+n++);
+ const owner=(await send({action:'select',character:'8002'})).cookie;
+ const other=(await send({action:'select',character:'8001'})).cookie;
+ const create=()=>send({action:'save',title:'Cloud image',body:'Image',region:'general',media:payload},owner);
+ try{
+  delete globalThis.__env.CLOUDINARY_API_SECRET;
+  assert.equal((await get()).data.mediaEnabled,false);
+  globalThis.__env.CLOUDINARY_API_SECRET='fixture-secret';
+  assert.equal((await get()).data.mediaEnabled,true);
+  const created=await create();assert.equal(created.status,200,JSON.stringify(created.data));
+  const id=created.data.id,media=(await get(0,'',id)).data.post.media,key=media.images[0];
+  assert.match(key,/^cld-/);assert.equal(cloudObjects.size,1);
+  const read=await GET(new Request(origin+'/api/astral?image='+key));assert.equal(read.status,200);
+  assert.equal(Buffer.from(await read.arrayBuffer()).toString(),'RIFF0000WEBPVP8 00000000');
+  assert.equal((await send({action:'save',title:'Foreign',body:'Image',region:'general',media},other)).status,400);
+  assert.equal((await send({action:'delete',id},other)).status,403);assert.equal(cloudObjects.size,1);
+  const uploads=calls.filter(u=>u.pathname.endsWith('/upload')).length;
+  assert.equal((await send({action:'save',id,title:'Kept',body:'Image',region:'general',media},owner)).status,200);
+  assert.equal(calls.filter(u=>u.pathname.endsWith('/upload')).length,uploads,'retained image does not upload twice');
+  assert.equal((await send({action:'comment',id,body:'Image comment',media:payload},other)).status,200);
+  const reply=(await get(0,'',id)).data.comments[0];assert.equal(cloudObjects.size,2);
+  await send({action:'deleteComment',id,commentId:reply.id},other);assert.equal(cloudObjects.size,1);
+  failDelete=true;await send({action:'delete',id},owner);
+  assert.equal((await GET(new Request(origin+'/api/astral?image='+key))).status,404);
+  assert.ok(sql.prepare('SELECT 1 FROM astral_media WHERE key=?').get(key),'failed cleanup remains queued');
+  failDelete=false;await send({action:'select',character:'8002'});
+  assert.equal(cloudObjects.size,0);assert.equal(sql.prepare('SELECT 1 FROM astral_media WHERE key=?').get(key),undefined);
+  failUpload=true;
+  const failed=await create();assert.equal(failed.status,400);assert.ok(!JSON.stringify(failed.data).includes('fixture-secret'));
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM astral_media WHERE committed=0').get().n,0);
+  failUpload=false;
+  sql.prepare("INSERT INTO astral_media VALUES ('quota-cloud','none','none','quota',1000000000,?,0)").run(Date.now());
+  assert.match((await create()).data.error,/1GB/);sql.prepare("DELETE FROM astral_media WHERE key='quota-cloud'").run();
+  const visible=await create();assert.equal(visible.status,200);
+  const admin=(await send({action:'adminLogin',password:nextSecret})).cookie;
+  await send({action:'adminDelete',kind:'post',id:visible.data.id},admin);assert.equal(cloudObjects.size,0);
+  console.log('PASS: Cloudinary signed upload/delivery/delete, partial settings, ownership, edits, replies, moderation, cleanup retry, failure rollback, secret redaction and quota');
+ }finally{
+  globalThis.fetch=savedFetch;
+  for(const key of ['CLOUDINARY_CLOUD_NAME','CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET'])delete globalThis.__env[key];
+ }
+}
 sql.close();

@@ -3,6 +3,32 @@ import {characters,regions,seedPosts,checkpoints} from '../../../lib/astral-data
 export const dynamic='force-dynamic';
 const db=()=>env.DB!;
 const bucket=()=>(env as unknown as {MEDIA?:R2Bucket}).MEDIA;
+function cloudinary(){
+ const e=env as unknown as Record<string,string|undefined>;
+ const name=e.CLOUDINARY_CLOUD_NAME?.trim(),key=e.CLOUDINARY_API_KEY?.trim(),secret=e.CLOUDINARY_API_SECRET?.trim();
+ return name&&/^[a-z0-9_-]+$/i.test(name)&&key&&secret?{name,key,secret}:null;
+}
+const mediaEnabled=()=>!!(cloudinary()||bucket());
+const cloudKey=(key:string)=>/^cld-[0-9a-f-]{36}\.webp$/.test(key);
+const cloudId=(key:string)=>'astral/'+key.slice(4,-5);
+async function cloudRequest(action:'upload'|'destroy',params:Record<string,string>,data?:Uint8Array){
+ const config=cloudinary();if(!config)throw new Error('이미지 저장소 연결 설정을 확인해 주세요.');
+ const signed={...params,timestamp:String(Math.floor(Date.now()/1000))};
+ const signature=await hash(Object.keys(signed).sort().map(k=>`${k}=${signed[k as keyof typeof signed]}`).join('&')+config.secret);
+ const form=new FormData();for(const [k,v] of Object.entries(signed))form.set(k,v);
+ form.set('api_key',config.key);form.set('signature',signature);
+ if(data)form.set('file',new Blob([new Uint8Array(data)],{type:'image/webp'}),'image.webp');
+ try{
+  const response=await fetch(`https://api.cloudinary.com/v1_1/${config.name}/image/${action}`,{method:'POST',body:form,signal:AbortSignal.timeout(20000)});
+  if(!response.ok)throw new Error('upstream');
+  return await response.json() as {public_id?:string;format?:string;result?:string};
+ }catch{throw new Error('이미지 저장소 요청에 실패했습니다. 연결 설정이나 이용 한도를 확인하고 다시 시도해 주세요.')}
+}
+async function storeImage(key:string,data:Uint8Array){
+ if(!cloudKey(key)){await bucket()!.put(key,data,{httpMetadata:{contentType:'image/webp'}});return}
+ const result=await cloudRequest('upload',{public_id:cloudId(key),overwrite:'false'},data);
+ if(result.public_id!==cloudId(key)||result.format!=='webp')throw new Error('이미지 저장소 응답을 확인하지 못했습니다. 다시 시도해 주세요.');
+}
 const tables=[
  "CREATE TABLE IF NOT EXISTS astral_accounts (owner TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, male TEXT NOT NULL DEFAULT '', female TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL)",
  'CREATE TABLE IF NOT EXISTS astral_account_sessions (token TEXT PRIMARY KEY, owner TEXT NOT NULL, version INTEGER NOT NULL, expires INTEGER NOT NULL)',
@@ -62,7 +88,7 @@ async function limit(req:Request,kind:string,max:number){
 function publicPost(p:any,me:Session|null){const {owner,male,female,...rest}=p;return {...rest,displayName:authorName(p.character,male,female),memes:JSON.parse(p.memes),owned:!!me&&owner===me.owner&&!p.seeded}}
 const selectPost='SELECT p.*, a.male,a.female, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments FROM astral_posts p LEFT JOIN astral_accounts a ON a.owner=p.owner';
 export async function GET(req:Request){try{
- await init();const url=new URL(req.url);if(url.searchParams.has('account'))return json({account:accountView(await accountSession(req))});if(url.searchParams.has('image'))return serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
+ await init();const url=new URL(req.url);if(url.searchParams.has('account'))return json({account:accountView(await accountSession(req))});if(url.searchParams.has('image'))return await serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
  if(id){
   const p=await db().prepare(selectPost+' WHERE p.id=? AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)').bind(id,at).first<any>();
   if(!p)return json({error:'이 시점에는 볼 수 없는 게시글입니다.'},404);
@@ -71,7 +97,7 @@ export async function GET(req:Request){try{
   return json({post:{...publicPost(p,me),media:await readMedia(id)},comments:await Promise.all(cs.results.map(async({owner,male,female,...c})=>({...c,displayName:authorName(c.character,male,female),owned:owner===me?.owner,media:await readMedia(c.id)}))),liked});
  }
  const posts=await db().prepare(selectPost+" WHERE p.region"+(url.searchParams.get('board')==='notice'?"='notice'":"!='notice'")+' AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) ORDER BY p.created DESC LIMIT 1000').bind(at).all<any>();
- return json({posts:posts.results.map(p=>publicPost(p,me)),mediaEnabled:!!bucket(),user:visitorView(me)});
+ return json({posts:posts.results.map(p=>publicPost(p,me)),mediaEnabled:mediaEnabled(),user:visitorView(me)});
  }catch(e){return json({error:e instanceof Error&&/시점/.test(e.message)?e.message:'통신을 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'},500)}}
 export async function POST(req:Request){try{
  if(req.headers.get('origin')!==new URL(req.url).origin)return json({error:'허용되지 않은 요청입니다.'},403);
@@ -254,9 +280,15 @@ async function readMedia(target:string){
  return {images:rows.results.map(r=>r.key),video:video?.video||''};
 }
 async function eraseMedia(keys:string[]){
- if(!keys.length||!bucket())return;
- await bucket()!.delete(keys);
- await db().batch(keys.map(key=>db().prepare('DELETE FROM astral_media WHERE key=?').bind(key)));
+ for(const key of keys){
+  try{
+   if(cloudKey(key)){
+    const result=await cloudRequest('destroy',{public_id:cloudId(key),invalidate:'true'});
+    if(!['ok','not found'].includes(result.result||''))continue;
+   }else{if(!bucket())continue;await bucket()!.delete(key)}
+   await db().prepare('DELETE FROM astral_media WHERE key=?').bind(key).run();
+  }catch{/* Keep the reservation for retry, without blocking other images. */}
+ }
 }
 async function cleanupMedia(){
  try{
@@ -264,7 +296,7 @@ async function cleanupMedia(){
  (committed=0 AND created<?) OR (committed=1 AND (
  NOT EXISTS(SELECT 1 FROM astral_posts p WHERE p.id=m.parent)
  OR EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=m.parent)
- OR (m.target!=m.parent AND NOT EXISTS(SELECT 1 FROM astral_comments c WHERE c.id=m.target)))) LIMIT 50`).bind(Date.now()-86400000).all<{key:string}>();
+ OR (m.target!=m.parent AND NOT EXISTS(SELECT 1 FROM astral_comments c WHERE c.id=m.target)))) LIMIT 10`).bind(Date.now()-86400000).all<{key:string}>();
  await eraseMedia(rows.results.map(r=>r.key));
  await db().prepare('DELETE FROM astral_videos WHERE NOT EXISTS(SELECT 1 FROM astral_posts WHERE id=target) AND NOT EXISTS(SELECT 1 FROM astral_comments WHERE id=target)').run();
  }catch{/* Retain quota reservations and retry cleanup on the next mutation. */}
@@ -280,16 +312,17 @@ async function saveWithMedia(input:any,me:Session,target:string,parent:string,ma
  let data:Uint8Array;try{data=Uint8Array.from(atob(item.slice(23)),c=>c.charCodeAt(0))}catch{throw new Error('이미지 데이터가 올바르지 않습니다.')}
  const ascii=(a:number,b:number)=>String.fromCharCode(...data.slice(a,b));
  if(data.length>1048576||data.length<20||ascii(0,4)!=='RIFF'||ascii(8,12)!=='WEBP'||!['VP8 ','VP8L','VP8X'].includes(ascii(12,16)))throw new Error('이미지 형식 또는 1MB 제한을 확인해 주세요.');
- fresh.push({key:crypto.randomUUID()+'.webp',data});
+ fresh.push({key:(cloudinary()?'cld-':'')+crypto.randomUUID()+'.webp',data});
  }
- if(fresh.length&&!bucket())throw new Error('이미지 저장소 연결이 필요합니다. 유튜브 링크와 글은 이용할 수 있어요.');
+ if(fresh.length&&!mediaEnabled())throw new Error('이미지 저장소 연결이 필요합니다. 유튜브 링크와 글은 이용할 수 있어요.');
  const reserved:string[]=[];
  try{
  for(const item of fresh){
  // One conditional INSERT atomically reserves space, including in-flight uploads.
- const result=await db().prepare('INSERT INTO astral_media(key,target,parent,owner,bytes,created) SELECT ?,?,?,?,?,? WHERE (SELECT COALESCE(SUM(bytes),0) FROM astral_media)+?<=8000000000').bind(item.key,target,parent,me.owner,item.data.length,Date.now(),item.data.length).run();
- if(!result.meta.changes)throw new Error('이미지 저장소가 8GB 한도에 도달했습니다.');reserved.push(item.key);
- await bucket()!.put(item.key,item.data,{httpMetadata:{contentType:'image/webp'}});
+ const cap=cloudinary()?1000000000:8000000000;
+ const result=await db().prepare('INSERT INTO astral_media(key,target,parent,owner,bytes,created) SELECT ?,?,?,?,?,? WHERE (SELECT COALESCE(SUM(bytes),0) FROM astral_media)+?<=?').bind(item.key,target,parent,me.owner,item.data.length,Date.now(),item.data.length,cap).run();
+ if(!result.meta.changes)throw new Error(`이미지 저장소가 사이트의 ${cap/1000000000}GB 한도에 도달했습니다.`);reserved.push(item.key);
+ await storeImage(item.key,item.data);
  }
  const desired=[...kept,...reserved];
  await db().batch([...ops,...reserved.map(key=>db().prepare('UPDATE astral_media SET committed=1 WHERE key=?').bind(key)),
@@ -303,9 +336,18 @@ async function serveImage(url:URL){
  const row=await db().prepare(`SELECT m.key FROM astral_media m JOIN astral_posts p ON p.id=m.parent WHERE m.key=? AND m.committed=1
  AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)
  AND (m.target=m.parent OR EXISTS(SELECT 1 FROM astral_comments c WHERE c.id=m.target))`).bind(key).first();
- if(!row||!bucket())return new Response('Not found',{status:404});
- const object=await bucket()!.get(key);if(!object)return new Response('Not found',{status:404});
- return new Response(object.body,{headers:{'Content-Type':'image/webp','X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300','Content-Security-Policy':"default-src 'none'"}});
+ if(!row)return new Response('Not found',{status:404});
+ let body:BodyInit|null;
+ if(cloudKey(key)){
+  const config=cloudinary();if(!config)return new Response('Not found',{status:404});
+  const response=await fetch(`https://res.cloudinary.com/${config.name}/image/upload/${cloudId(key)}.webp`,{redirect:'error',signal:AbortSignal.timeout(15000)});
+  if(!response.ok)return new Response('Image unavailable',{status:response.status===404?404:502});
+  body=response.body;
+ }else{
+  if(!bucket())return new Response('Not found',{status:404});
+  const object=await bucket()!.get(key);if(!object)return new Response('Not found',{status:404});body=object.body;
+ }
+ return new Response(body,{headers:{'Content-Type':'image/webp','X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300','Content-Security-Policy':"default-src 'none'"}});
 }
 
 // Registered users retain a stable owner ID across devices and credential changes.
