@@ -85,7 +85,17 @@ export function transmissionAt(at:number,regionId?:string){
   planarcadia:['1501','낙원에 오신 여러분, 오늘의 이야기를 들려주세요!'],
   astropolis:['1512','바닷바람을 따라 새로운 소리가 들려오네요. 잠시 함께 걸어 볼까요?'],
  };
+ const copy:Record<string,[string,string,string,string]>={
+  herta:['별을 연구하는 곳,','이야기도 발견돼.','호기심 가득한 연구실부터 정거장의 작은 소동까지.','헤르타 우주정거장에서 오늘의 발견을 나눠 보세요.'],
+  belobog:['눈 덮인 도시에도,','따뜻한 안부를.','행정구의 하루부터 하층구 골목의 작은 소식까지.','벨로보그의 동료들과 이야기를 나눠 보세요.'],
+  luofu:['별바다를 건너,','나부에서 만나요.','별뗏목이 오가는 거리부터 잠시 쉬어 가는 찻집까지.','선주 나부에서 만난 인연들에게 안부를 전해 보세요.'],
+  penacony:['꿈이 빛나는 밤,','함께 걷는 순간.','화려한 거리의 불빛과 오래 간직하고 싶은 만남들.','페나코니에서 당신이 마주한 꿈을 들려주세요.'],
+  amphoreus:['황금빛 여정에,','이야기를 엮어요.','오크마에서 나눈 안부부터 여정 중에 만난 풍경까지.','앰포리어스의 동료들과 당신의 기록을 이어 보세요.'],
+  planarcadia:['웃음이 모이는 곳,','다음 무대는 여기.','도시를 떠도는 소문부터 뜻밖의 만남과 작은 소동까지.','이상 낙원에서 오늘의 즐거운 이야기를 들려주세요.'],
+  astropolis:['바닷바람을 따라,','새로운 안부를.','파도 곁에서 만난 풍경과 귓가에 남은 선율들.','아스트로폴리스에서 함께한 순간을 나눠 보세요.'],
+ };
+ const [title,accent,description,invitation]=copy[region.id];
  const [id,message]=choices[region.id];
  const character=characterById(id)!;
- return {region,character,message,image:id==='1013'?'/characters/herta-portrait.png':'/portraits/'+id+'.png'};
+ return {region,character,message,title,accent,description,invitation,image:id==='1013'?'/characters/herta-portrait.png':'/portraits/'+id+'.png'};
 }
