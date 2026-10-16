@@ -1,0 +1,16 @@
+import {chromium} from 'file:///C:/Users/igyuy/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs';
+import {strict as assert} from 'node:assert';
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+page.on('dialog',d=>d.accept());
+const posts=Array.from({length:24},(_,i)=>({id:'fixture-'+i,character:'8002',region:'general',at:0,title:'Fixture post '+i,body:'Readable body',created:Date.now()-i,seeded:0,owned:true,likes:0,comments:0,memes:[],media:{images:i===8?['test-image.webp']:[]}}));
+await page.route('**/api/astral**',route=>{const url=new URL(route.request().url());const id=url.searchParams.get('id');if(route.request().method()==='POST')return route.fulfill({json:{id:'fixture-0'}});const page=+(url.searchParams.get('page')||1);return route.fulfill({json:id?{post:posts.find(p=>p.id===id),comments:[],liked:false}:{posts:posts.slice((page-1)*8,page*8),total:24,page,user:{character:'8002',account:true,username:'fixture'},mediaEnabled:true}})});
+try{
+ await page.goto('http://127.0.0.1:5189/board?at=0&page=2&sort=new');await page.getByRole('heading',{name:'Fixture post 8',exact:true}).waitFor();assert.equal(await page.locator('.post-card').count(),8);
+ await page.locator('.post-card').first().scrollIntoViewIfNeeded();const before=await page.evaluate(()=>scrollY);await page.locator('.post-card').first().click();await page.locator('.detail-card').waitFor();await page.getByRole('button',{name:'게시판으로 돌아가기',exact:true}).click();await page.getByRole('heading',{name:'Fixture post 8',exact:true}).waitFor();await page.waitForTimeout(200);assert.match(page.url(),/page=2/);assert.ok(Math.abs(await page.evaluate(()=>scrollY)-before)<100);
+ await page.getByRole('button',{name:'글쓰기',exact:true}).click();await page.getByLabel('제목',{exact:true}).fill('임시저장 검증');await page.getByLabel('내용',{exact:true}).fill('다시 열어도 남아 있는 내용');await page.getByRole('button',{name:'닫기',exact:true}).click();await page.getByRole('button',{name:'글쓰기',exact:true}).click();assert.equal(await page.getByLabel('제목',{exact:true}).inputValue(),'임시저장 검증');assert.equal(await page.locator('dialog textarea[name=body]').inputValue(),'다시 열어도 남아 있는 내용');await page.getByRole('button',{name:'닫기',exact:true}).click();
+ await page.goto('http://127.0.0.1:5189/notices');await page.locator('.hero').waitFor();assert.equal(await page.getByRole('button',{name:'나의 이야기 남기기',exact:true}).count(),0);
+ await page.setViewportSize({width:390,height:844});await page.goto('http://127.0.0.1:5189/board');await page.locator('.post-card').first().waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.ok(await page.locator('.post-content>p').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=14));await page.screenshot({path:'.wrangler/improvements-mobile.png',fullPage:true});
+ assert.deepEqual(errors,[]);console.log('PASS: paginated list, return URL and scroll, draft restore, notice CTA, mobile readability and overflow');
+}finally{await browser.close()}
+

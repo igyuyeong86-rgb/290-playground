@@ -43,3 +43,11 @@ a.post-card{text-decoration:none;color:inherit}a.post-card:focus-visible{outline
  .hero[data-region="amphoreus"] .hero-herta{top:-45px}
  .hero[data-region="astropolis"] .hero-herta{top:-55px}
 }
+
+/* Readability improvements leave the hero composition untouched. */
+.attachment-indicator{display:inline-block;color:#d9c793;font-size:12px;margin:8px 0}
+.feed-controls>select{max-width:145px;padding:8px;background:#181c2a;color:#e9e7f0;border:1px solid #555367;border-radius:6px}
+.activity-list{list-style:none;padding:0}.activity-list li{padding:18px 0;border-bottom:1px solid #393b4e}.activity-list p{white-space:pre-wrap;overflow-wrap:anywhere}.recovery-code{display:block;overflow-wrap:anywhere;padding:18px;background:#181c2a;user-select:all}
+@media(max-width:760px){.post-card .post-content>p{font-size:14px;line-height:1.7}.post-author{font-size:13px}.post-location,.post-type{font-size:11px}.post-top,.post-bottom{font-size:12px;line-height:1.5}.post-content h3{font-size:17px;line-height:1.5}.post-card{padding-top:20px;padding-bottom:20px}.feed-controls{flex-wrap:wrap;gap:12px}.feed-controls .search{width:100%}.header-right{gap:6px}.account-link{font-size:12px}.admin-row{overflow-wrap:anywhere}}
+
+@media(max-width:760px){.masthead{height:110px;min-height:70px;flex-wrap:wrap;padding:12px 16px;gap:10px}.masthead .brand{flex-shrink:0}.masthead .header-right{flex:1 0 100%;justify-content:flex-end;gap:12px}.sidebar.open{top:110px}}

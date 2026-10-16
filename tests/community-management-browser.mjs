@@ -15,7 +15,7 @@ await page.route('**/api/astral**',async route=>{
 try{
  await page.goto(base+'/board?at=0');await page.getByRole('heading',{name:fixture.title,exact:true}).waitFor();
  assert.equal(await page.getByLabel('스토리 시점',{exact:true}).count(),0);
- assert.match(await page.locator('.post-card').first().getAttribute('href'),/at=31/);
+ assert.match(await page.locator('.post-card').first().getAttribute('href'),/at=0/);
  await page.locator('.post-card').first().click();await page.locator('.detail-card').waitFor();
  await page.goto(base+'/board?at=0');await page.getByRole('heading',{name:fixture.title,exact:true}).waitFor();
  await page.getByRole('button',{name:'캐릭터 바꾸기',exact:true}).click();
@@ -37,7 +37,7 @@ try{
  await page.getByRole('button',{name:'사용자 관리',exact:true}).click();await page.getByText('test_account',{exact:true}).waitFor();
  await page.getByRole('button',{name:'작성한 댓글 보기',exact:true}).click();await page.locator('.admin-row summary').filter({hasText:'관리할 댓글'}).waitFor();
  assert.ok((await page.getByRole('link',{name:'원문 보기'}).getAttribute('href')).includes(fixture.id));
- page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'댓글 삭제',exact:true}).click();await page.getByText('표시할 항목이 없습니다.',{exact:true}).waitFor();assert.equal(deleted,true);
+ page.on('dialog',dialog=>dialog.accept(dialog.type()==='prompt'?'관리 테스트':undefined));await page.getByRole('button',{name:'댓글 삭제',exact:true}).click();await page.getByText('표시할 항목이 없습니다.',{exact:true}).waitFor();assert.equal(deleted,true);
  assert.deepEqual(errors,[]);
  console.log('PASS: timeless feed/detail links, hidden time controls, regional filters, 7 restored large banners at desktop/mobile without overflow and readable desktop speech, account management and comment deletion UI');
 }finally{await browser.close()}

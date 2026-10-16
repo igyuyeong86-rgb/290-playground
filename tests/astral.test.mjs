@@ -18,11 +18,12 @@ const {characters,seedPosts,regions,checkpoints}=globalThis.__data;
 assert.equal(characters.length,83);assert.equal(new Set(characters.map(c=>c.id)).size,83);assert.ok(seedPosts.length>80);assert.equal(new Set(seedPosts.map(p=>p.character)).size,81);assert.equal(new Set(seedPosts.map(p=>p.id)).size,seedPosts.length);
 for(const c of characters)assert.ok(existsSync('public'+c.image));
 for(let at=0;at<checkpoints.length;at++){assert.ok(seedPosts.some(p=>p.at===at));for(const p of seedPosts.filter(p=>p.at===at)){assert.ok(characters.some(c=>c.id===p.character));assert.ok(regions.some(r=>r.id===p.region&&r.start<=p.at))}}
-const routeSource=readFileSync('app/api/astral/route.ts','utf8').replace("import { env } from 'cloudflare:workers';",'const env=globalThis.__env;').replace("import {characters,regions,seedPosts,checkpoints} from '../../../lib/astral-data';",'const {characters,regions,seedPosts,checkpoints}=globalThis.__data;');
+globalThis.__background=[];
+const routeSource=readFileSync('app/api/astral/route.ts','utf8').replace("import { env, waitUntil } from 'cloudflare:workers';",'const env=globalThis.__env;const waitUntil=p=>globalThis.__background.push(p);').replace("import {characters,regions,seedPosts,checkpoints} from '../../../lib/astral-data';",'const {characters,regions,seedPosts,checkpoints}=globalThis.__data;');
 let {GET,POST}=await module(routeSource);
 const origin='https://astral.test';
 async function get(at=31,cookie='',id=''){const r=await GET(new Request(`${origin}/api/astral?at=${at}${id?'&id='+id:''}`,{headers:{cookie}}));return {status:r.status,data:await r.json()}}
-async function post(body,cookie='',ip='test'){const r=await POST(new Request(origin+'/api/astral',{method:'POST',headers:{origin,cookie,'cf-connecting-ip':ip},body:JSON.stringify({at:21,...body})}));return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0],header:r.headers.get('set-cookie')}}
+async function post(body,cookie='',ip='test'){const r=await POST(new Request(origin+'/api/astral',{method:'POST',headers:{origin,cookie,'cf-connecting-ip':ip},body:JSON.stringify({at:21,...body})}));await Promise.all(globalThis.__background.splice(0));return {status:r.status,data:await r.json(),cookie:r.headers.get('set-cookie')?.split(';')[0],header:r.headers.get('set-cookie')}}
 assert.equal((await get()).data.posts.length,seedPosts.length);
 assert.equal(seedPosts.length,137);assert.ok(!seedPosts.some(p=>['8001','8002'].includes(p.character)));
 const additions=JSON.parse(readFileSync('lib/astral-story-posts.json','utf8'));assert.equal(additions.length,54);
@@ -169,7 +170,7 @@ const nr=await GET(new Request(origin+'/api/astral?at=0&board=notice'));const nd
 assert.equal((await post({action:'report',kind:'post',id:np.data.id,reason:'No notice reporting'},b.cookie,'notice-report')).status,403);
 assert.equal((await post({action:'comment',id:np.data.id,body:'Notice reply'},b.cookie,'notice-reply')).status,200);
 const nc=(await get(0,mc,np.data.id)).data.comments[0];assert.equal((await post({action:'report',kind:'comment',id:np.data.id,commentId:nc.id,reason:'Comment still reportable'},b.cookie,'notice-report')).status,200);
-await post({action:'adminDelete',kind:'post',id:np.data.id},mc,'delete-media');assert.equal(objects.size,0);
+await post({action:'adminDelete',kind:'post',id:np.data.id},mc,'delete-media');assert.equal(objects.size,1,'trash retains media');await post({action:'adminPurge',id:np.data.id},mc,'purge-media');await post({action:'adminMaintenance'},mc,'maintain-media');assert.equal(objects.size,0);
 delete globalThis.__env.MEDIA;
 assert.equal((await post({action:'save',title:'No binding',body:'No',region:'general',media:payload},mc,'missing-bucket')).status,400);
 assert.equal((await post({action:'save',title:'Video only',body:'Yes',region:'general',media:{images:[],video:'https://www.youtube.com/shorts/dQw4w9WgXcQ'}},mc,'video')).status,400);
@@ -297,7 +298,7 @@ console.log('PASS: account registration/adoption, hashing, login, private IDs, p
   failDelete=true;await send({action:'delete',id},owner);
   assert.equal((await GET(new Request(origin+'/api/astral?image='+key))).status,404);
   assert.ok(sql.prepare('SELECT 1 FROM astral_media WHERE key=?').get(key),'failed cleanup remains queued');
-  failDelete=false;await send({action:'select',character:'8002'});
+  failDelete=false;const maintenanceAdmin=(await send({action:'adminLogin',password:nextSecret})).cookie;await send({action:'adminMaintenance'},maintenanceAdmin);
   assert.equal(cloudObjects.size,0);assert.equal(sql.prepare('SELECT 1 FROM astral_media WHERE key=?').get(key),undefined);
   failUpload=true;
   const failed=await create();assert.equal(failed.status,400);assert.ok(!JSON.stringify(failed.data).includes('fixture-secret'));
@@ -307,7 +308,7 @@ console.log('PASS: account registration/adoption, hashing, login, private IDs, p
   assert.match((await create()).data.error,/1GB/);sql.prepare("DELETE FROM astral_media WHERE key='quota-cloud'").run();
   const visible=await create();assert.equal(visible.status,200);
   const admin=(await send({action:'adminLogin',password:nextSecret})).cookie;
-  await send({action:'adminDelete',kind:'post',id:visible.data.id},admin);assert.equal(cloudObjects.size,0);
+  await send({action:'adminDelete',kind:'post',id:visible.data.id},admin);assert.ok(cloudObjects.size>0);await send({action:'adminPurge',id:visible.data.id},admin);await send({action:'adminMaintenance'},admin);assert.equal(cloudObjects.size,0);
   console.log('PASS: Cloudinary signed upload/delivery/delete, partial settings, ownership, edits, replies, moderation, cleanup retry, failure rollback, secret redaction and quota');
  }finally{
   globalThis.fetch=savedFetch;
@@ -346,6 +347,41 @@ console.log('PASS: account registration/adoption, hashing, login, private IDs, p
  assert.equal((await read('comments','&q=moderation%20fixture%20unique')).total,0);
  for(const c of characters){assert.ok(globalThis.__data.characterRegions[c.id].length);for(const r of globalThis.__data.characterRegions[c.id])assert.ok(regions.some(x=>x.id===r));}
  console.log('PASS: timeless all feed/detail, region gates retained, notice isolation, account-only admin list/search without credentials, protected comment list and deletion, region roster coverage');
+}
+
+{
+ let seq=0;const send=(body,cookie='')=>post(body,cookie,'improvements-'+(++seq));
+ const read=async(params,cookie='')=>{const r=await GET(new Request(origin+'/api/astral?'+params,{headers:{cookie}}));return {status:r.status,...await r.json()}};
+ const reg=await send({action:'accountRegister',username:'recovery_fixture',password:'Start-password-123'});assert.equal(reg.status,200);assert.equal(reg.data.recoveryCode.length,64);
+ const owner=sql.prepare("SELECT owner FROM astral_accounts WHERE username='recovery_fixture'").get().owner;
+ assert.notEqual(sql.prepare('SELECT digest FROM astral_recovery WHERE owner=?').get(owner).digest,reg.data.recoveryCode);
+ const doc=await send({action:'save',title:'pagination unique title',body:'my article',region:'general'},reg.cookie);
+ const other=await send({action:'accountRegister',username:'reply_fixture',password:'Start-password-123'});
+ await send({action:'comment',id:doc.data.id,body:'reply fixture'},other.cookie);
+ let alerts=await read('activity=notifications',reg.cookie);assert.equal(alerts.total,1);assert.equal(alerts.rows[0].seen,0);
+ assert.equal((await read('activity=notifications',other.cookie)).total,0);
+ assert.equal((await read('activity=comments',other.cookie)).total,1);
+ assert.equal((await read('activity=comments')).status,401);
+ await send({action:'readNotifications'},reg.cookie);assert.equal((await read('activity=notifications',reg.cookie)).rows[0].seen,1);
+ const page1=await read('board=all&page=1'),page2=await read('board=all&page=2');assert.equal(page1.posts.length,8);assert.ok(!page2.posts.some(p=>page1.posts.some(q=>q.id===p.id)));assert.equal(page1.total,page2.total);
+ assert.equal((await read('board=all&page=1&q=pagination%20unique')).total,1);
+ assert.ok((await read('board=all&page=1&kind=story')).posts.every(p=>p.seeded));assert.ok((await read('board=all&page=1&kind=user')).posts.every(p=>!p.seeded));
+ const mine=await read('board=mine&page=1',reg.cookie);assert.equal(mine.total,1);assert.ok(mine.posts.every(p=>p.owned));assert.equal((await read('board=mine&page=1')).total,0);
+ const reset=await send({action:'accountRecover',username:'recovery_fixture',code:reg.data.recoveryCode,password:'Changed-password-123'});assert.equal(reset.status,200);
+ assert.equal((await read('account=1',reg.cookie)).account,null);assert.equal((await read('account=1',reset.cookie)).account.username,'recovery_fixture');
+ assert.equal((await send({action:'accountRecover',username:'recovery_fixture',code:reg.data.recoveryCode,password:'Other-password-123'})).status,401);
+ assert.equal((await send({action:'accountRecoveryCode',currentPassword:'Wrong-password'},reset.cookie)).status,401);
+ const replacement=await send({action:'accountRecoveryCode',currentPassword:'Changed-password-123'},reset.cookie);assert.equal(replacement.status,200);assert.notEqual(replacement.data.recoveryCode,reg.data.recoveryCode);
+ const admin=(await send({action:'adminLogin',password:nextSecret})).cookie;const cid=alerts.rows[0].id;
+ assert.equal((await send({action:'adminDelete',kind:'comment',id:cid,reason:'test moderation'},admin)).status,200);
+ assert.equal((await get(31,reset.cookie,doc.data.id)).data.comments.length,0);assert.equal((await read('activity=notifications',reset.cookie)).total,0);
+ assert.ok((await read('admin=trash',admin)).rows.some(x=>x.id===cid));assert.ok((await read('admin=audit',admin)).rows.some(x=>x.target===cid&&x.reason==='test moderation'));
+ assert.equal((await send({action:'adminRestore',id:cid},other.cookie)).status,401);
+ assert.equal((await send({action:'adminRestore',id:cid},admin)).status,200);assert.equal((await get(31,reset.cookie,doc.data.id)).data.comments.length,1);
+ await send({action:'adminDelete',kind:'post',id:doc.data.id},admin);assert.equal((await get(31,reset.cookie,doc.data.id)).status,404);
+ await send({action:'adminRestore',id:doc.data.id},admin);assert.equal((await get(31,reset.cookie,doc.data.id)).status,200);
+ assert.ok((await read('admin=users&q=recovery_fixture',admin)).rows[0].login>0);
+ console.log('PASS: server pagination/search/filters, private activity/notifications, one-use recovery and session revocation, trash restore, audit, login timestamps');
 }
 
 sql.close();
