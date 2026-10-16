@@ -88,7 +88,7 @@ async function limit(req:Request,kind:string,max:number){
 function publicPost(p:any,me:Session|null){const {owner,male,female,...rest}=p;return {...rest,displayName:authorName(p.character,male,female),memes:JSON.parse(p.memes),owned:!!me&&owner===me.owner&&!p.seeded}}
 const selectPost='SELECT p.*, a.male,a.female, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments FROM astral_posts p LEFT JOIN astral_accounts a ON a.owner=p.owner';
 export async function GET(req:Request){try{
- await init();const url=new URL(req.url);if(url.searchParams.has('account'))return json({account:accountView(await accountSession(req))});if(url.searchParams.has('image'))return await serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
+ await init();const url=new URL(req.url);if(url.searchParams.has('account'))return json({account:accountView(await accountSession(req))});if(url.searchParams.has('image'))return await serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=['all','general'].includes(url.searchParams.get('board')||'')?checkpoints.length-1:checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
  if(id){
   const p=await db().prepare(selectPost+' WHERE p.id=? AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)').bind(id,at).first<any>();
   if(!p)return json({error:'이 시점에는 볼 수 없는 게시글입니다.'},404);
@@ -193,16 +193,20 @@ async function adminRead(req:Request,url:URL){
   where="p.seeded=0 AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) AND (p.title LIKE ? OR p.body LIKE ? OR p.character LIKE ? OR p.owner LIKE ?)";
   args=[q,q,q,q];from='astral_posts p';selection='p.id,p.owner,p.character,p.title,p.body,p.created,(SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments';
  }else if(section==='users'){
-  where='(u.owner LIKE ? OR u.character LIKE ?)';args=[q,q];from='astral_users u';
-  selection='u.*,(SELECT COUNT(*) FROM astral_posts p WHERE p.owner=u.owner AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)) AS posts,(SELECT COUNT(*) FROM astral_comments c WHERE c.owner=u.owner AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=c.post)) AS comments';
+  where='(a.username LIKE ? OR u.owner LIKE ? OR u.character LIKE ?)';args=[q,q,q];from='astral_accounts a JOIN astral_users u ON u.owner=a.owner';
+  selection='u.owner,u.character,u.blocked,u.seen,a.created,a.username,(SELECT COUNT(*) FROM astral_posts p WHERE p.owner=u.owner AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)) AS posts,(SELECT COUNT(*) FROM astral_comments c WHERE c.owner=u.owner AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=c.post)) AS comments';
+ }else if(section==='comments'){
+  where='NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=c.post) AND (c.body LIKE ? OR p.title LIKE ? OR c.owner LIKE ? OR a.username LIKE ?)';
+  args=[q,q,q,q];from='astral_comments c JOIN astral_posts p ON p.id=c.post LEFT JOIN astral_accounts a ON a.owner=c.owner';
+  selection='c.id,c.post,c.owner,c.character,c.body,c.created,p.title,a.username';
  }else if(section==='reports'){
   const status=url.searchParams.get('status')||'open';
   if(!['open','resolved','dismissed','all'].includes(status))return json({error:'잘못된 처리 상태입니다.'},400);
   where='(r.title LIKE ? OR r.body LIKE ? OR r.reason LIKE ?)'+(status==='all'?'':' AND r.status=?');args=[q,q,q,...(status==='all'?[]:[status])];from='astral_reports r';selection='r.*';
  }else return json({error:'관리 메뉴를 확인해 주세요.'},400);
  const count=await db().prepare(`SELECT COUNT(*) AS total FROM ${from} WHERE ${where}`).bind(...args).first<{total:number}>();
- const rows=await db().prepare(`SELECT ${selection} FROM ${from} WHERE ${where} ORDER BY ${section==='users'?'u.seen':section==='reports'?'r.created':'p.created'} DESC LIMIT 25 OFFSET ?`).bind(...args,offset).all();
- return json({rows:section==='posts'?await Promise.all(rows.results.map(async(r:any)=>({...r,media:await readMedia(r.id)}))):rows.results,total:count?.total||0,page});
+ const rows=await db().prepare(`SELECT ${selection} FROM ${from} WHERE ${where} ORDER BY ${section==='users'?'u.seen':section==='reports'?'r.created':section==='comments'?'c.created':'p.created'} DESC LIMIT 25 OFFSET ?`).bind(...args,offset).all();
+ return json({rows:['posts','comments'].includes(section)?await Promise.all(rows.results.map(async(r:any)=>({...r,media:await readMedia(r.id)}))):rows.results,total:count?.total||0,page});
 }
 async function adminWrite(req:Request,b:any){
  if(b.action==='adminLogin'){

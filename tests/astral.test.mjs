@@ -314,4 +314,38 @@ console.log('PASS: account registration/adoption, hashing, login, private IDs, p
   for(const key of ['CLOUDINARY_CLOUD_NAME','CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET'])delete globalThis.__env[key];
  }
 }
+
+
+{
+ const first=await GET(new Request(origin+'/api/astral?at=0&board=all'));
+ const last=await GET(new Request(origin+'/api/astral?at=31&board=all'));
+ const early=await first.json(),late=await last.json();
+ assert.deepEqual(early.posts.map(p=>p.id),late.posts.map(p=>p.id),'all board ignores story point');
+ assert.ok(early.posts.some(p=>p.seeded&&p.at===31));
+ assert.ok(early.posts.every(p=>p.region!=='notice'),'notices stay in notices tab');
+ const future=early.posts.find(p=>p.seeded&&p.at===31);
+ assert.equal((await GET(new Request(origin+'/api/astral?at=0&board=all&id='+future.id))).status,200);
+ assert.equal((await GET(new Request(origin+'/api/astral?at=0&board=herta&id='+future.id))).status,404);
+ const token=crypto.randomUUID();
+ const version=sql.prepare('SELECT version FROM astral_admin WHERE id=1').get().version;
+ const digest=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))).toString('hex');
+ sql.prepare('INSERT INTO astral_admin_sessions(token,expires,version) VALUES (?,?,?)').run(digest,Date.now()+60000,version);
+ const cookie='astral_admin='+token;
+ const read=async(section,suffix='')=>{const r=await GET(new Request(origin+'/api/astral?admin='+section+suffix,{headers:{cookie}}));assert.equal(r.status,200);return r.json()};
+ const users=await read('users');
+ assert.equal(users.total,sql.prepare('SELECT COUNT(*) AS n FROM astral_accounts').get().n);
+ assert.ok(users.rows.length>0);assert.ok(users.rows.every(r=>r.username&&!('password' in r)&&!('salt' in r)));
+ const filtered=await read('users','&q='+encodeURIComponent(users.rows[0].username));assert.ok(filtered.rows.some(r=>r.owner===users.rows[0].owner));
+ assert.equal((await GET(new Request(origin+'/api/astral?admin=comments'))).status,401);
+ const sample=sql.prepare('SELECT owner,character FROM astral_users LIMIT 1').get();
+ const cid=crypto.randomUUID();
+ sql.prepare('INSERT INTO astral_comments(id,post,owner,character,body,at,created) VALUES (?,?,?,?,?,?,?)').run(cid,future.id,sample.owner,sample.character,'moderation fixture unique',31,Date.now());
+ const comments=await read('comments','&q=moderation%20fixture%20unique');
+ assert.equal(comments.total,1);assert.equal(comments.rows[0].post,future.id);assert.equal(comments.rows[0].title,future.title);
+ assert.equal((await post({action:'adminDelete',kind:'comment',id:cid},cookie,'moderation-fixture')).status,200);
+ assert.equal((await read('comments','&q=moderation%20fixture%20unique')).total,0);
+ for(const c of characters){assert.ok(globalThis.__data.characterRegions[c.id].length);for(const r of globalThis.__data.characterRegions[c.id])assert.ok(regions.some(x=>x.id===r));}
+ console.log('PASS: timeless all feed/detail, region gates retained, notice isolation, account-only admin list/search without credentials, protected comment list and deletion, region roster coverage');
+}
+
 sql.close();

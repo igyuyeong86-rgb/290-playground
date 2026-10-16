@@ -99,3 +99,19 @@ export function transmissionAt(at:number,regionId?:string){
  const character=characterById(id)!;
  return {region,character,message,title,accent,description,invitation,image:id==='1013'?'/characters/herta-portrait.png':'/portraits/'+id+'.png'};
 }
+
+// Browsing categories: principal story locations; travelling characters may appear in multiple regions.
+export const characterRegions:Record<string,string[]>=Object.fromEntries(characters.map(c=>{
+ const overrides:Record<string,string[]>={
+  '1005':['herta','luofu'],'1006':['herta','penacony'],'1205':['luofu'],'1310':['penacony'],
+  '1112':['belobog','penacony'],'1304':['penacony'],'1314':['penacony'],
+  '1307':['penacony'],'1306':['penacony'],'1317':['penacony'],'1315':['penacony'],
+  '1302':['herta','penacony'],'1512':['astropolis'],'1513':['astropolis'],
+  '1508':['planarcadia'],'1509':['planarcadia'],
+ };
+ const ids=overrides[c.id]||(c.group==='은하열차'?regions.map(r=>r.id):
+  c.group.startsWith('벨로보그')?['belobog']:c.group.startsWith('선주')?['luofu']:
+  c.group.startsWith('페나코니')?['penacony']:c.group.startsWith('앰포리어스')?['amphoreus']:
+  c.group.startsWith('4.x')?['planarcadia']:['herta']);
+ return [c.id,ids];
+}));
