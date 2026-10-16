@@ -264,20 +264,9 @@ async function boundedBody(req:Request,max:number){
  while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>max){await reader.cancel();throw new Error('첨부 요청이 너무 큽니다.')}chunks.push(value)}
  const data=new Uint8Array(size);let offset=0;for(const c of chunks){data.set(c,offset);offset+=c.length}return new TextDecoder().decode(data);
 }
-function videoId(value:unknown){
- if(!value)return '';if(typeof value!=='string'||value.length>2048)throw new Error('유튜브 링크를 확인해 주세요.');
- if(/^[A-Za-z0-9_-]{11}$/.test(value))return value;
- try{const u=new URL(value);if(!['https:','http:'].includes(u.protocol))throw 0;
- const host=u.hostname.toLowerCase();let id='';
- if(host==='youtu.be')id=u.pathname.slice(1);
- else if(['youtube.com','www.youtube.com','m.youtube.com','www.youtube-nocookie.com'].includes(host))id=u.pathname==='/watch'?u.searchParams.get('v')||'':/^\/(shorts|embed|live)\//.test(u.pathname)?u.pathname.split('/')[2]:'';
- if(/^[A-Za-z0-9_-]{11}$/.test(id))return id;
- }catch{}throw new Error('올바른 유튜브 영상 링크를 입력해 주세요.');
-}
 async function readMedia(target:string){
  const rows=await db().prepare('SELECT key FROM astral_media WHERE target=? AND committed=1 ORDER BY created,key').bind(target).all<{key:string}>();
- const video=await db().prepare('SELECT video FROM astral_videos WHERE target=?').bind(target).first<{video:string}>();
- return {images:rows.results.map(r=>r.key),video:video?.video||''};
+ return {images:rows.results.map(r=>r.key)};
 }
 async function eraseMedia(keys:string[]){
  for(const key of keys){
@@ -304,17 +293,18 @@ async function cleanupMedia(){
 async function saveWithMedia(input:any,me:Session,target:string,parent:string,max:number,ops:D1PreparedStatement[]){
  if(input===undefined){await db().batch(ops);return}
  if(!input||!Array.isArray(input.images)||input.images.length>max)throw new Error(`이미지는 최대 ${max}장까지 첨부할 수 있습니다.`);
- const video=videoId(input.video),old=await readMedia(target),kept:string[]=[],fresh:{key:string;data:Uint8Array}[]=[];
+ if(input.video!==undefined&&input.video!=='')throw new Error('첨부는 이미지만 허용됩니다. 영상 링크는 지원하지 않습니다.');
+ const old=await readMedia(target),kept:string[]=[],fresh:{key:string;data:Uint8Array}[]=[];
  for(const item of input.images){
  if(typeof item!=='string')throw new Error('이미지를 확인해 주세요.');
  if(old.images.includes(item)){if(!kept.includes(item))kept.push(item);continue}
  if(!item.startsWith('data:image/webp;base64,')||item.length>1400000)throw new Error('이미지는 압축된 WebP 형식으로 첨부해 주세요.');
  let data:Uint8Array;try{data=Uint8Array.from(atob(item.slice(23)),c=>c.charCodeAt(0))}catch{throw new Error('이미지 데이터가 올바르지 않습니다.')}
  const ascii=(a:number,b:number)=>String.fromCharCode(...data.slice(a,b));
- if(data.length>1048576||data.length<20||ascii(0,4)!=='RIFF'||ascii(8,12)!=='WEBP'||!['VP8 ','VP8L','VP8X'].includes(ascii(12,16)))throw new Error('이미지 형식 또는 1MB 제한을 확인해 주세요.');
+ if(data.length>1048576||data.length<20||ascii(0,4)!=='RIFF'||ascii(8,12)!=='WEBP'||!validWebp(data))throw new Error('이미지 형식 또는 1MB 제한을 확인해 주세요.');
  fresh.push({key:(cloudinary()?'cld-':'')+crypto.randomUUID()+'.webp',data});
  }
- if(fresh.length&&!mediaEnabled())throw new Error('이미지 저장소 연결이 필요합니다. 유튜브 링크와 글은 이용할 수 있어요.');
+ if(fresh.length&&!mediaEnabled())throw new Error('이미지 저장소 연결이 필요합니다. 글은 이용할 수 있어요.');
  const reserved:string[]=[];
  try{
  for(const item of fresh){
@@ -327,9 +317,24 @@ async function saveWithMedia(input:any,me:Session,target:string,parent:string,ma
  const desired=[...kept,...reserved];
  await db().batch([...ops,...reserved.map(key=>db().prepare('UPDATE astral_media SET committed=1 WHERE key=?').bind(key)),
  ...old.images.filter(key=>!desired.includes(key)).map(key=>db().prepare('UPDATE astral_media SET committed=0,created=0 WHERE key=?').bind(key)),
- db().prepare('INSERT INTO astral_videos(target,video) VALUES (?,?) ON CONFLICT(target) DO UPDATE SET video=excluded.video').bind(target,video)]);
+ db().prepare('DELETE FROM astral_videos WHERE target=?').bind(target)]);
  }catch(e){try{await eraseMedia(reserved)}catch{}throw e}
  await cleanupMedia();
+}
+function validWebp(data:Uint8Array){
+ const view=new DataView(data.buffer,data.byteOffset,data.byteLength);
+ if(view.getUint32(4,true)!==data.length-8)return false;
+ let offset=12,images=0;
+ while(offset<data.length){
+  if(offset+8>data.length)return false;
+  const tag=String.fromCharCode(...data.slice(offset,offset+4)),length=view.getUint32(offset+4,true),start=offset+8;
+  if(!['VP8 ','VP8L','VP8X','ALPH','ICCP','EXIF','XMP '].includes(tag)||start+length>data.length)return false;
+  if(tag==='VP8 '){if(length<10||data[start+3]!==157||data[start+4]!==1||data[start+5]!==42)return false;images++}
+  if(tag==='VP8L'){if(length<5||data[start]!==47)return false;images++}
+  if(tag==='VP8X'&&(length!==10||(data[start]&2)!==0))return false;
+  offset=start+length+(length%2);
+ }
+ return offset===data.length&&images===1;
 }
 async function serveImage(url:URL){
  const key=url.searchParams.get('image')||'';
@@ -347,7 +352,7 @@ async function serveImage(url:URL){
   if(!bucket())return new Response('Not found',{status:404});
   const object=await bucket()!.get(key);if(!object)return new Response('Not found',{status:404});body=object.body;
  }
- return new Response(body,{headers:{'Content-Type':'image/webp','X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300','Content-Security-Policy':"default-src 'none'"}});
+ return new Response(body,{headers:{'Content-Type':'image/webp','Content-Disposition':'inline','X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300','Content-Security-Policy':"default-src 'none'"}});
 }
 
 // Registered users retain a stable owner ID across devices and credential changes.

@@ -137,16 +137,17 @@ const objects=new Map();
 globalThis.__env.MEDIA={put:async(key,data)=>{objects.set(key,data)},get:async key=>objects.has(key)?{body:objects.get(key)}:null,delete:async keys=>{for(const key of Array.isArray(keys)?keys:[keys])objects.delete(key)}};
 const loginMedia=await post({action:'adminLogin',password:nextSecret},'','media-admin');assert.equal(loginMedia.status,200);
 const mc=loginMedia.cookie;
-const image='data:image/webp;base64,'+Buffer.from('RIFF0000WEBPVP8 00000000').toString('base64');
-const payload={images:[image],video:'https://youtu.be/dQw4w9WgXcQ'};
+const image='data:image/webp;base64,'+'UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA';
+const payload={images:[image]};
 const mp=await post({action:'save',title:'Media test',body:'Image and video',region:'general',media:payload},mc,'media');assert.equal(mp.status,200,JSON.stringify(mp.data));
 let md=(await get(0,mc,mp.data.id)).data.post;
-assert.equal(md.media.video,'dQw4w9WgXcQ');assert.equal(md.media.images.length,1);assert.equal(objects.size,1);
+assert.equal(md.media.video,undefined);assert.equal(md.media.images.length,1);assert.equal(objects.size,1);
 const originalKey=md.media.images[0];
-assert.equal((await GET(new Request(origin+'/api/astral?image='+originalKey))).status,200);
+const served=await GET(new Request(origin+'/api/astral?image='+originalKey));assert.equal(served.status,200);assert.equal(served.headers.get('content-disposition'),'inline');
 assert.equal((await post({action:'save',title:'Foreign image',body:'No',region:'general',media:md.media},b.cookie,'foreign')).status,400);
 assert.equal((await post({action:'save',title:'Too many',body:'No',region:'general',media:{images:Array(6).fill(image),video:''}},mc,'media')).status,400);
 assert.equal((await post({action:'save',title:'Bad video',body:'No',region:'general',media:{images:[],video:'https://evil.test/watch?v=dQw4w9WgXcQ'}},mc,'media')).status,400);
+assert.equal((await post({action:'save',title:'Forged header',body:'No',region:'general',media:{images:['data:image/webp;base64,'+Buffer.from('RIFF0000WEBPVP8 <script>').toString('base64')]}},mc,'forged')).status,400);
 assert.equal((await post({action:'save',title:'Bad image',body:'No',region:'general',media:{images:['data:image/webp;base64,SGVsbG8='],video:''}},mc,'media')).status,400);
 const oversized='data:image/webp;base64,'+Buffer.concat([Buffer.from('RIFF0000WEBPVP8 '),Buffer.alloc(1048576)]).toString('base64');
 assert.equal((await post({action:'save',title:'Large',body:'No',region:'general',media:{images:[oversized],video:''}},mc,'large')).status,400);
@@ -171,8 +172,8 @@ const nc=(await get(0,mc,np.data.id)).data.comments[0];assert.equal((await post(
 await post({action:'adminDelete',kind:'post',id:np.data.id},mc,'delete-media');assert.equal(objects.size,0);
 delete globalThis.__env.MEDIA;
 assert.equal((await post({action:'save',title:'No binding',body:'No',region:'general',media:payload},mc,'missing-bucket')).status,400);
-assert.equal((await post({action:'save',title:'Video only',body:'Yes',region:'general',media:{images:[],video:'https://www.youtube.com/shorts/dQw4w9WgXcQ'}},mc,'video')).status,200);
-console.log('PASS: notice-only feed, notice report denial, reply reports, image ownership, image/count/size validation, quota, upload failure cleanup, edits/deletes/moderation cleanup, private media serving, YouTube validation, missing R2 fallback.');
+assert.equal((await post({action:'save',title:'Video only',body:'Yes',region:'general',media:{images:[],video:'https://www.youtube.com/shorts/dQw4w9WgXcQ'}},mc,'video')).status,400);
+console.log('PASS: notice-only feed, notice report denial, reply reports, image ownership, image/count/size validation, quota, upload failure cleanup, edits/deletes/moderation cleanup, private media serving, video attachment rejection, missing storage handling.');
 
 
 // Expansion must preserve timeline gating while allowing every new profile.
@@ -283,7 +284,7 @@ console.log('PASS: account registration/adoption, hashing, login, private IDs, p
   const id=created.data.id,media=(await get(0,'',id)).data.post.media,key=media.images[0];
   assert.match(key,/^cld-/);assert.equal(cloudObjects.size,1);
   const read=await GET(new Request(origin+'/api/astral?image='+key));assert.equal(read.status,200);
-  assert.equal(Buffer.from(await read.arrayBuffer()).toString(),'RIFF0000WEBPVP8 00000000');
+  assert.equal(Buffer.from(await read.arrayBuffer()).toString('base64'),image.split(',')[1]);
   assert.equal((await send({action:'save',title:'Foreign',body:'Image',region:'general',media},other)).status,400);
   assert.equal((await send({action:'delete',id},other)).status,403);assert.equal(cloudObjects.size,1);
   const uploads=calls.filter(u=>u.pathname.endsWith('/upload')).length;

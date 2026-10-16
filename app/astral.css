@@ -21,3 +21,9 @@ a.post-card{text-decoration:none;color:inherit}a.post-card:focus-visible{outline
 @media(max-width:760px){.account-link{font-size:10px}.header-right .connection{display:none}.account-page{max-width:100%}.account-summary{gap:12px}.header-right .profile-button>span{max-width:55px}}
 
 @media(max-width:760px){.masthead{gap:6px;padding-inline:12px}.masthead .brand{font-size:14px;gap:6px;min-width:0;flex-shrink:1}.masthead .brand-mark{width:28px;height:28px;flex-shrink:0}.masthead .brand-mark svg{width:20px}.masthead .brand small{font-size:5px;letter-spacing:.3px}.header-right{gap:5px;flex-shrink:0}.header-right .profile-button{padding:6px}.header-right .profile-button>span{max-width:44px}}
+/* Inline attachments and an accessible native image viewer. */
+.attached-images>button{display:block;padding:0;text-align:left;max-width:100%;cursor:zoom-in;justify-self:start;border-radius:10px}
+.image-viewer{padding:56px 16px 16px;border:1px solid var(--line);border-radius:12px;background:#101520;color:var(--text);max-width:95vw;max-height:94dvh;overflow:auto}
+.image-viewer::backdrop{background:#000c}
+.image-viewer img{display:block;max-width:calc(95vw - 34px);max-height:calc(94dvh - 90px);object-fit:contain;margin:auto}
+.image-viewer-close{position:absolute;right:12px;top:10px;padding:10px 16px;border-radius:6px;background:#252d3d;color:var(--text)}
