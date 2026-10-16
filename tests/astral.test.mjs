@@ -251,6 +251,7 @@ console.log('PASS: account registration/adoption, hashing, login, private IDs, p
  globalThis.fetch=async(url,options)=>{
   const u=new URL(url);calls.push(u);
   if(u.hostname==='res.cloudinary.com'){
+   assert.equal(options.redirect,'manual','Cloudflare Workers does not support redirect:error');
    assert.ok(u.pathname.startsWith('/fixture-cloud/image/upload/astral/'));
    const id=u.pathname.split('/image/upload/')[1].replace(/\.webp$/,'');
    return cloudObjects.has(id)?new Response(cloudObjects.get(id),{headers:{'Content-Type':'image/webp'}}):new Response('',{status:404});

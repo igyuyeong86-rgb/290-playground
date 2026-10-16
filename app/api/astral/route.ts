@@ -345,7 +345,8 @@ async function serveImage(url:URL){
  let body:BodyInit|null;
  if(cloudKey(key)){
   const config=cloudinary();if(!config)return new Response('Not found',{status:404});
-  const response=await fetch(`https://res.cloudinary.com/${config.name}/image/upload/${cloudId(key)}.webp`,{redirect:'error',signal:AbortSignal.timeout(15000)});
+  // Workers supports only follow/manual. Reject redirects through the status check below.
+  const response=await fetch(`https://res.cloudinary.com/${config.name}/image/upload/${cloudId(key)}.webp`,{redirect:'manual',signal:AbortSignal.timeout(15000)});
   if(!response.ok)return new Response('Image unavailable',{status:response.status===404?404:502});
   body=response.body;
  }else{
