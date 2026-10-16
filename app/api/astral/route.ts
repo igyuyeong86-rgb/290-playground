@@ -4,6 +4,10 @@ export const dynamic='force-dynamic';
 const db=()=>env.DB!;
 const bucket=()=>(env as unknown as {MEDIA?:R2Bucket}).MEDIA;
 const tables=[
+ "CREATE TABLE IF NOT EXISTS astral_accounts (owner TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, male TEXT NOT NULL DEFAULT '', female TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL)",
+ 'CREATE TABLE IF NOT EXISTS astral_account_sessions (token TEXT PRIMARY KEY, owner TEXT NOT NULL, version INTEGER NOT NULL, expires INTEGER NOT NULL)',
+ 'CREATE INDEX IF NOT EXISTS astral_account_sessions_owner ON astral_account_sessions(owner)',
+
  'CREATE TABLE IF NOT EXISTS astral_media (key TEXT PRIMARY KEY, target TEXT NOT NULL, parent TEXT NOT NULL, owner TEXT NOT NULL, bytes INTEGER NOT NULL, created INTEGER NOT NULL, committed INTEGER NOT NULL DEFAULT 0)',
  'CREATE TABLE IF NOT EXISTS astral_videos (target TEXT PRIMARY KEY, video TEXT NOT NULL)',
  'CREATE INDEX IF NOT EXISTS astral_media_target ON astral_media(target)',
@@ -45,8 +49,8 @@ async function init(){
 }
 const json=(data:unknown,status=200,headers:Record<string,string>={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store',...headers}});
 const hash=async(s:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s))),b=>b.toString(16).padStart(2,'0')).join('');
-type Session={owner:string;character:string;admin?:boolean};
-async function session(req:Request){if(await administrator(req))return {owner:'__admin__',character:'__admin__',admin:true};const token=req.headers.get('cookie')?.match(/(?:^|;\s*)astral_session=([^;]+)/)?.[1];return token?db().prepare('SELECT owner,character FROM astral_sessions WHERE token=? AND expires>?').bind(await hash(token),Date.now()).first<Session>():null}
+type Session={owner:string;character:string;admin?:boolean;username?:string;male?:string;female?:string;version?:number};
+async function session(req:Request){if(await administrator(req))return {owner:'__admin__',character:'__admin__',admin:true};const account=await accountSession(req);if(account)return account;const token=req.headers.get('cookie')?.match(/(?:^|;\s*)astral_session=([^;]+)/)?.[1];return token?db().prepare('SELECT owner,character FROM astral_sessions WHERE token=? AND expires>?').bind(await hash(token),Date.now()).first<Session>():null}
 function checkpoint(value:unknown){const n=Number(value);if(!Number.isInteger(n)||n<0||n>=checkpoints.length)throw new Error('스토리 시점을 선택해 주세요.');return n}
 function field(v:unknown,max:number){if(typeof v!=='string'||!v.trim()||v.length>max)throw new Error('입력 내용의 길이를 확인해 주세요.');return v.trim()}
 async function limit(req:Request,kind:string,max:number){
@@ -55,31 +59,35 @@ async function limit(req:Request,kind:string,max:number){
  const row=await db().prepare('SELECT count FROM astral_limits WHERE key=?').bind(key).first<{count:number}>();
  if(row!.count>max)throw new Error('잠시 후 다시 시도해 주세요. 요청이 너무 빠릅니다.');
 }
-function publicPost(p:any,me:Session|null){const {owner,...rest}=p;return {...rest,memes:JSON.parse(p.memes),owned:!!me&&owner===me.owner&&!p.seeded}}
-const selectPost='SELECT p.*, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments FROM astral_posts p';
+function publicPost(p:any,me:Session|null){const {owner,male,female,...rest}=p;return {...rest,displayName:authorName(p.character,male,female),memes:JSON.parse(p.memes),owned:!!me&&owner===me.owner&&!p.seeded}}
+const selectPost='SELECT p.*, a.male,a.female, (SELECT COUNT(*) FROM astral_likes l WHERE l.post=p.id) AS likes, (SELECT COUNT(*) FROM astral_comments c WHERE c.post=p.id) AS comments FROM astral_posts p LEFT JOIN astral_accounts a ON a.owner=p.owner';
 export async function GET(req:Request){try{
- await init();const url=new URL(req.url);if(url.searchParams.has('image'))return serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
+ await init();const url=new URL(req.url);if(url.searchParams.has('account'))return json({account:accountView(await accountSession(req))});if(url.searchParams.has('image'))return serveImage(url);if(url.searchParams.has('admin'))return adminRead(req,url);const at=checkpoint(url.searchParams.get('at')??2),me=await session(req),id=url.searchParams.get('id');
  if(id){
   const p=await db().prepare(selectPost+' WHERE p.id=? AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id)').bind(id,at).first<any>();
   if(!p)return json({error:'이 시점에는 볼 수 없는 게시글입니다.'},404);
-  const cs=await db().prepare('SELECT id,character,body,created,owner FROM astral_comments WHERE post=? ORDER BY created,id').bind(id).all<any>();
+  const cs=await db().prepare('SELECT c.id,c.character,c.body,c.created,c.owner,a.male,a.female FROM astral_comments c LEFT JOIN astral_accounts a ON a.owner=c.owner WHERE c.post=? ORDER BY c.created,c.id').bind(id).all<any>();
   const liked=me?!!await db().prepare('SELECT 1 FROM astral_likes WHERE post=? AND owner=?').bind(id,me.owner).first():false;
-  return json({post:{...publicPost(p,me),media:await readMedia(id)},comments:await Promise.all(cs.results.map(async({owner,...c})=>({...c,owned:owner===me?.owner,media:await readMedia(c.id)}))),liked});
+  return json({post:{...publicPost(p,me),media:await readMedia(id)},comments:await Promise.all(cs.results.map(async({owner,male,female,...c})=>({...c,displayName:authorName(c.character,male,female),owned:owner===me?.owner,media:await readMedia(c.id)}))),liked});
  }
  const posts=await db().prepare(selectPost+" WHERE p.region"+(url.searchParams.get('board')==='notice'?"='notice'":"!='notice'")+' AND (p.seeded=0 OR p.at<=?) AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=p.id) ORDER BY p.created DESC LIMIT 1000').bind(at).all<any>();
- return json({posts:posts.results.map(p=>publicPost(p,me)),mediaEnabled:!!bucket(),user:me?{character:me.character,admin:!!me.admin}:null});
+ return json({posts:posts.results.map(p=>publicPost(p,me)),mediaEnabled:!!bucket(),user:visitorView(me)});
  }catch(e){return json({error:e instanceof Error&&/시점/.test(e.message)?e.message:'통신을 연결하지 못했어요. 잠시 후 다시 시도해 주세요.'},500)}}
 export async function POST(req:Request){try{
  if(req.headers.get('origin')!==new URL(req.url).origin)return json({error:'허용되지 않은 요청입니다.'},403);
  if(Number(req.headers.get('content-length')||0)>7100000)return json({error:'입력 내용이 너무 깁니다.'},413);
  const raw=await boundedBody(req,7100000);if(raw.length>7100000)return json({error:'입력 내용이 너무 깁니다.'},413);
  const b=JSON.parse(raw);await init();await cleanupMedia();
+ if(typeof b.action==='string'&&b.action.startsWith('account'))return await accountWrite(req,b);
  if(typeof b.action==='string'&&b.action.startsWith('admin'))return await adminWrite(req,b);
  const me=await session(req),now=Date.now();
  if(me&&!me.admin&&await db().prepare('SELECT 1 FROM astral_users WHERE owner=? AND blocked=1').bind(me.owner).first())return json({error:'이 사용자는 활동이 제한되었습니다.'},403);
  if(b.action==='select'){
   const c=characters.find(c=>c.id===b.character);if(!c)return json({error:'캐릭터를 선택해 주세요.'},400);
   await limit(req,'select',30);
+  const signedAccount=me?.admin?await accountSession(req):me;
+  if(signedAccount?.username){await db().prepare('UPDATE astral_users SET character=?,seen=? WHERE owner=?').bind(c.id,now,signedAccount.owner).run();const response=json({ok:true,user:visitorView({...signedAccount,character:c.id})});if(me?.admin){await revokeAdmin(req);response.headers.append('Set-Cookie',adminCookie(req,'',0))}return response;}
+
   const old=req.headers.get('cookie')?.match(/(?:^|;\s*)astral_session=([^;]+)/)?.[1];
   const token=crypto.randomUUID()+crypto.randomUUID(),owner=me?.admin?crypto.randomUUID():(me?.owner||crypto.randomUUID());
   const ops=[db().prepare('INSERT INTO astral_sessions (token,owner,character,expires) VALUES (?,?,?,?)').bind(await hash(token),owner,c.id,now+2592000000),db().prepare('DELETE FROM astral_sessions WHERE expires<?').bind(now)];
@@ -101,7 +109,7 @@ export async function POST(req:Request){try{
   await limit(req,'write',20);
   if(b.id){
    const p=await db().prepare('SELECT owner,seeded FROM astral_posts WHERE id=? AND NOT EXISTS(SELECT 1 FROM astral_hidden h WHERE h.post=astral_posts.id)').bind(b.id).first<any>();
-   if(!p||p.owner!==me.owner||p.seeded)return json({error:'이 브라우저에서 작성한 글만 수정할 수 있어요.'},403);
+   if(!p||p.owner!==me.owner||p.seeded)return json({error:'본인이 작성한 글만 수정할 수 있어요.'},403);
    await saveWithMedia(b.media,me,b.id,b.id,5,[db().prepare('UPDATE astral_posts SET title=?,body=?,region=?,at=? WHERE id=?').bind(title,body,region.id,at,b.id)]);return json({id:b.id});
   }
   const id=crypto.randomUUID();await saveWithMedia(b.media,me,id,id,5,[db().prepare('INSERT INTO astral_posts (id,owner,character,region,at,title,body,created) VALUES (?,?,?,?,?,?,?,?)').bind(id,me.owner,me.character,region.id,at,title,body,now)]);return json({id});
@@ -119,7 +127,7 @@ export async function POST(req:Request){try{
   return json({ok:true});
  }
  if(b.action==='delete'){
-  if(p.owner!==me.owner||p.seeded)return json({error:'이 브라우저에서 작성한 글만 삭제할 수 있어요.'},403);
+  if(p.owner!==me.owner||p.seeded)return json({error:'본인이 작성한 글만 삭제할 수 있어요.'},403);
   await db().batch([db().prepare('DELETE FROM astral_comments WHERE post=?').bind(id),db().prepare('DELETE FROM astral_likes WHERE post=?').bind(id),db().prepare('DELETE FROM astral_posts WHERE id=?').bind(id)]);await cleanupMedia();return json({ok:true});
  }
  if(b.action==='comment'){await limit(req,'comment',30);const cid=crypto.randomUUID();await saveWithMedia(b.media,me,cid,id,1,[db().prepare('INSERT INTO astral_comments (id,post,owner,character,body,at,created) VALUES (?,?,?,?,?,?,?)').bind(cid,id,me.owner,me.character,field(b.body,2000),at,now)]);return json({ok:true})}
@@ -298,4 +306,74 @@ async function serveImage(url:URL){
  if(!row||!bucket())return new Response('Not found',{status:404});
  const object=await bucket()!.get(key);if(!object)return new Response('Not found',{status:404});
  return new Response(object.body,{headers:{'Content-Type':'image/webp','X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300','Content-Security-Policy':"default-src 'none'"}});
+}
+
+// Registered users retain a stable owner ID across devices and credential changes.
+const accountToken=(req:Request)=>req.headers.get('cookie')?.match(/(?:^|;\s*)astral_account=([^;]+)/)?.[1];
+function accountCookie(req:Request,token:string,age=2592000){return `astral_account=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${new URL(req.url).protocol==='https:'?'; Secure':''}`}
+async function accountSession(req:Request){
+ const token=accountToken(req);if(!token)return null;
+ return db().prepare('SELECT a.owner,a.username,a.male,a.female,a.version,u.character FROM astral_account_sessions s JOIN astral_accounts a ON a.owner=s.owner AND a.version=s.version JOIN astral_users u ON u.owner=a.owner WHERE s.token=? AND s.expires>?').bind(await hash(token),Date.now()).first<Session>();
+}
+function authorName(id:string,male?:string,female?:string){return id==='8001'?(male||'카일루스'):id==='8002'?(female||'스텔레'):characters.find(c=>c.id===id)?.name||(id==='__admin__'?'게시판의 에이온즈':'알 수 없는 캐릭터')}
+function visitorView(me:Session|null){return me?{character:me.character,admin:!!me.admin,account:!!me.username,username:me.username,male:me.male||'',female:me.female||'',displayName:authorName(me.character,me.male,me.female)}:null}
+function accountView(me:Session|null){return me?{username:me.username,male:me.male||'',female:me.female||'',character:me.character}:null}
+function usernameField(v:unknown){if(typeof v!=='string')throw new Error('입력할 아이디를 확인해 주세요.');const value=v.trim().normalize('NFC').toLowerCase();if(!/^[a-z0-9가-힣_]{3,24}$/.test(value))throw new Error('입력할 아이디는 한글·영문·숫자·밑줄 3~24자로 정해 주세요.');return value}
+function userPassword(v:unknown){if(typeof v!=='string'||v.length<8||v.length>128)throw new Error('입력할 비밀번호는 8~128자로 정해 주세요.');return v}
+function trailblazerName(v:unknown){if(typeof v!=='string'||v.trim().length>20||/[\u0000-\u001f\u007f]/.test(v))throw new Error('입력할 개척자 이름은 20자 이내로 정해 주세요.');return v.trim()}
+async function issueAccount(req:Request,owner:string,version:number){
+ const token=crypto.randomUUID()+crypto.randomUUID();
+ const result=await db().prepare('INSERT INTO astral_account_sessions(token,owner,version,expires) SELECT ?,owner,version,? FROM astral_accounts WHERE owner=? AND version=?').bind(await hash(token),Date.now()+2592000000,owner,version).run();
+ if(!result.meta.changes)return json({error:'로그인 정보가 변경되었습니다. 다시 로그인해 주세요.'},401);
+ const response=json({ok:true},200,{'Set-Cookie':accountCookie(req,token)});
+ response.headers.append('Set-Cookie',`astral_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${new URL(req.url).protocol==='https:'?'; Secure':''}`);
+ await revokeAdmin(req);response.headers.append('Set-Cookie',adminCookie(req,'',0));
+ return response;
+}
+async function accountWrite(req:Request,b:any){
+ if(b.action==='accountLogout'){
+  const token=accountToken(req);if(token)await db().prepare('DELETE FROM astral_account_sessions WHERE token=?').bind(await hash(token)).run();
+  return json({ok:true},200,{'Set-Cookie':accountCookie(req,'',0)});
+ }
+ await limit(req,'account',10);
+ await db().prepare('DELETE FROM astral_account_sessions WHERE expires<?').bind(Date.now()).run();
+ if(b.action==='accountRegister'){
+  const current=await session(req);if(current?.username)return json({error:'이미 로그인되어 있습니다.'},400);
+  const username=usernameField(b.username),password=userPassword(b.password);
+  if(await db().prepare('SELECT 1 FROM astral_accounts WHERE username=?').bind(username).first())return json({error:'이미 사용 중인 아이디입니다.'},409);
+  if(current&&!current.admin&&await db().prepare('SELECT 1 FROM astral_users WHERE owner=? AND blocked=1').bind(current.owner).first())return json({error:'이 사용자는 활동이 제한되었습니다.'},403);
+  const owner=current&&!current.admin?current.owner:crypto.randomUUID(),character=current&&!current.admin?current.character:'8002',salt=crypto.randomUUID(),now=Date.now();
+  try{await db().batch([
+   db().prepare('INSERT INTO astral_accounts(owner,username,salt,password,created) VALUES (?,?,?,?,?)').bind(owner,username,salt,await passwordHash(password,salt),now),
+   db().prepare('INSERT INTO astral_users(owner,character,created,seen) VALUES (?,?,?,?) ON CONFLICT(owner) DO UPDATE SET seen=excluded.seen').bind(owner,character,now,now),
+   db().prepare('DELETE FROM astral_sessions WHERE owner=?').bind(owner)
+  ])}catch(e){if(String(e).includes('UNIQUE'))return json({error:'이미 가입된 정보입니다. 다른 아이디를 사용하거나 로그인해 주세요.'},409);throw e}
+  return issueAccount(req,owner,1);
+ }
+ if(b.action==='accountLogin'){
+  const username=usernameField(b.username),password=userPassword(b.password);
+  const a=await db().prepare('SELECT a.*,u.blocked FROM astral_accounts a JOIN astral_users u ON u.owner=a.owner WHERE a.username=?').bind(username).first<any>();
+  const candidate=await passwordHash(password,a?.salt||'unknown-account-fixed-work');
+  if(!a||!equalHash(candidate,a.password))return json({error:'아이디 또는 비밀번호가 올바르지 않습니다.'},401);
+  if(a.blocked)return json({error:'이 사용자는 활동이 제한되었습니다.'},403);
+  const old=accountToken(req);if(old)await db().prepare('DELETE FROM astral_account_sessions WHERE token=?').bind(await hash(old)).run();
+  return issueAccount(req,a.owner,a.version);
+ }
+ const me=await accountSession(req);if(!me)return json({error:'사용자 로그인이 필요합니다.'},401);
+ if(b.action==='accountNames'){
+  await db().prepare('UPDATE astral_accounts SET male=?,female=? WHERE owner=? AND version=?').bind(trailblazerName(b.male),trailblazerName(b.female),me.owner,me.version).run();return json({ok:true});
+ }
+ if(b.action==='accountCredentials'){
+  const a=await db().prepare('SELECT * FROM astral_accounts WHERE owner=? AND version=?').bind(me.owner,me.version).first<any>();
+  if(!a||!equalHash(await passwordHash(userPassword(b.currentPassword),a.salt),a.password))return json({error:'현재 비밀번호가 올바르지 않습니다.'},401);
+  const username=usernameField(b.username),newPassword=b.password===''?null:userPassword(b.password);
+  if(await db().prepare('SELECT 1 FROM astral_accounts WHERE username=? AND owner!=?').bind(username,me.owner).first())return json({error:'이미 사용 중인 아이디입니다.'},409);
+  const salt=newPassword?crypto.randomUUID():a.salt,password=newPassword?await passwordHash(newPassword,salt):a.password;
+  let result;
+  try{result=await db().prepare('UPDATE astral_accounts SET username=?,salt=?,password=?,version=version+1 WHERE owner=? AND version=?').bind(username,salt,password,me.owner,a.version).run()}catch(e){if(String(e).includes('UNIQUE'))return json({error:'이미 사용 중인 아이디입니다.'},409);throw e}
+  if(!result.meta.changes)return json({error:'정보가 변경되었습니다. 다시 로그인해 주세요.'},409);
+  await db().prepare('DELETE FROM astral_account_sessions WHERE owner=? AND version<=?').bind(me.owner,a.version).run();
+  return issueAccount(req,me.owner,a.version+1);
+ }
+ return json({error:'알 수 없는 계정 요청입니다.'},400);
 }

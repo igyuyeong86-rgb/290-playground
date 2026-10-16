@@ -2,7 +2,7 @@
   {
     "id": "8001",
     "key": "Trailblazer",
-    "name": "개척자 · 카일루스",
+    "name": "카일루스",
     "group": "은하열차",
     "image": "/characters/8001.png",
     "aliases": [
@@ -16,7 +16,7 @@
   {
     "id": "8002",
     "key": "Trailblazer",
-    "name": "개척자 · 스텔레",
+    "name": "스텔레",
     "group": "은하열차",
     "image": "/characters/8002.png",
     "aliases": [

@@ -15,3 +15,9 @@ a.post-card{text-decoration:none;color:inherit}a.post-card:focus-visible{outline
 
 /* Long-form portraits and changing transmissions share the existing banner. */
 .hero-herta{object-fit:contain;object-position:center top}.hero-transmission{max-width:240px}.hero-transmission p{overflow-wrap:anywhere}
+
+.account-link{color:#d9c28f;font-size:12px;white-space:nowrap;text-decoration:none}.account-link:hover{text-decoration:underline}
+.account-page{max-width:680px}.account-page>.section-kicker{margin-top:32px}.account-page section{border-top:1px solid #354052;margin-top:32px;padding-top:12px}.account-page form{display:grid;gap:16px;margin:22px 0}.account-page label{display:grid;gap:8px;font-size:14px;color:#cbd1e0}.account-page input{width:100%;box-sizing:border-box;background:#111722;border:1px solid #424a5c;border-radius:7px;padding:13px;color:#f0f2f8;font:inherit}.account-page input:focus{outline:2px solid #d5bd86;outline-offset:2px}.account-page .gold-button{justify-self:start}.account-summary{display:flex;flex-wrap:wrap;align-items:center;gap:16px}.account-summary p{flex-basis:100%;margin-bottom:0}.account-feedback{padding:14px;border:1px solid #6f957e;border-radius:8px;background:#243c32}.account-feedback.error{border-color:#a36f7b;background:#38262e}.account-page button:disabled{opacity:.55;cursor:wait}
+@media(max-width:760px){.account-link{font-size:10px}.header-right .connection{display:none}.account-page{max-width:100%}.account-summary{gap:12px}.header-right .profile-button>span{max-width:55px}}
+
+@media(max-width:760px){.masthead{gap:6px;padding-inline:12px}.masthead .brand{font-size:14px;gap:6px;min-width:0;flex-shrink:1}.masthead .brand-mark{width:28px;height:28px;flex-shrink:0}.masthead .brand-mark svg{width:20px}.masthead .brand small{font-size:5px;letter-spacing:.3px}.header-right{gap:5px;flex-shrink:0}.header-right .profile-button{padding:6px}.header-right .profile-button>span{max-width:44px}}

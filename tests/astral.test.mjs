@@ -189,4 +189,57 @@ assert.equal(globalThis.__data.transmissionAt(31).character.id,'1512');
 assert.equal(globalThis.__data.transmissionAt(0).character.id,'1013');
 console.log('PASS: 4.5 character selection, editorial time gates, 32 checkpoints, dynamic banners');
 
+
+{
+// Account ownership, credential rotation and public names.
+let accountRequest=0;
+const accountPost=(body,cookie='')=>post(body,cookie,'account-test-'+(++accountRequest));
+const readAccount=async cookie=>{const r=await GET(new Request(origin+'/api/astral?account=1',{headers:{cookie}}));return (await r.json()).account};
+assert.equal(await readAccount(''),null);
+const guest=await accountPost({action:'select',character:'8002'});
+const guestPost=await accountPost({action:'save',region:'general',title:'Account migration',body:'Retain my ownership'},guest.cookie);
+const reg=await accountPost({action:'accountRegister',username:'Captain_One',password:'Fixture-password-123'},guest.cookie);
+assert.equal(reg.status,200);assert.match(reg.header,/HttpOnly; SameSite=Lax.*Secure/);
+assert.equal((await readAccount(reg.cookie)).username,'captain_one');
+assert.equal((await get(0,reg.cookie,guestPost.data.id)).data.post.owned,true);
+assert.equal((await get(0,guest.cookie)).data.user,null,'guest token revoked after adoption');
+const stored=sql.prepare('SELECT * FROM astral_accounts WHERE username=?').get('captain_one');
+assert.notEqual(stored.password,'Fixture-password-123');assert.equal(stored.password.length,64);
+assert.equal((await accountPost({action:'accountRegister',username:'CAPTAIN_ONE',password:'Another-password-123'})).status,409);
+assert.equal((await accountPost({action:'accountLogin',username:'captain_one',password:'Wrong-password-123'})).status,401);
+assert.equal((await accountPost({action:'accountNames',male:'A',female:'B'})).status,401);
+assert.equal((await accountPost({action:'accountNames',male:'나의 카일',female:'나의 별'},reg.cookie)).status,200);
+const publicNamed=(await get(0,'',guestPost.data.id)).data.post;
+assert.equal(publicNamed.displayName,'나의 별');assert.ok(!JSON.stringify(publicNamed).includes('captain_one'));assert.ok(!('male' in publicNamed));assert.ok(!('owner' in publicNamed));
+const other=await accountPost({action:'accountRegister',username:'captain_two',password:'Another-password-123'});
+const otherPost=await accountPost({action:'save',region:'general',title:'Second owner',body:'Independent name'},other.cookie);
+assert.equal((await get(0,reg.cookie,otherPost.data.id)).data.post.displayName,'스텔레');
+assert.equal((await accountPost({action:'save',id:guestPost.data.id,region:'general',title:'Hijack',body:'No'},other.cookie)).status,403);
+assert.equal((await accountPost({action:'select',character:'8001'},reg.cookie)).data.user.displayName,'나의 카일');
+const reply=await accountPost({action:'comment',id:guestPost.data.id,body:'Public custom name'},reg.cookie);assert.equal(reply.status,200);
+assert.equal((await get(0,'',guestPost.data.id)).data.comments[0].displayName,'나의 카일');
+const second=await accountPost({action:'accountLogin',username:'CAPTAIN_ONE',password:'Fixture-password-123'});assert.equal(second.status,200);
+assert.equal((await get(0,second.cookie,guestPost.data.id)).data.post.owned,true);
+assert.equal((await accountPost({action:'accountCredentials',username:'changed_one',currentPassword:'Wrong-password-123',password:''},reg.cookie)).status,401);
+assert.equal((await accountPost({action:'accountCredentials',username:'captain_two',currentPassword:'Fixture-password-123',password:''},reg.cookie)).status,409);
+const rename=await accountPost({action:'accountCredentials',username:'changed_one',currentPassword:'Fixture-password-123',password:''},reg.cookie);assert.equal(rename.status,200);
+assert.equal(await readAccount(second.cookie),null);assert.equal(await readAccount(reg.cookie),null);
+assert.equal((await accountPost({action:'accountLogin',username:'captain_one',password:'Fixture-password-123'})).status,401);
+assert.equal((await accountPost({action:'accountLogin',username:'changed_one',password:'Fixture-password-123'})).status,200);
+const rotate=await accountPost({action:'accountCredentials',username:'changed_one',currentPassword:'Fixture-password-123',password:'New-fixture-password-456'},rename.cookie);assert.equal(rotate.status,200);
+assert.equal(await readAccount(rename.cookie),null);
+assert.equal((await accountPost({action:'accountLogin',username:'changed_one',password:'Fixture-password-123'})).status,401);
+assert.equal((await accountPost({action:'accountLogin',username:'changed_one',password:'New-fixture-password-456'})).status,200);
+await accountPost({action:'accountNames',male:'',female:''},rotate.cookie);
+assert.equal((await get(0,'',guestPost.data.id)).data.post.displayName,'스텔레');
+assert.equal((await get(0,'',guestPost.data.id)).data.comments[0].displayName,'카일루스');
+await accountPost({action:'accountLogout'},rotate.cookie);assert.equal(await readAccount(rotate.cookie),null);
+sql.prepare('UPDATE astral_users SET blocked=1 WHERE owner=?').run(stored.owner);
+assert.equal((await accountPost({action:'accountLogin',username:'changed_one',password:'New-fixture-password-456'})).status,403);
+const csrf=await POST(new Request(origin+'/api/astral',{method:'POST',headers:{origin:'https://other.test'},body:JSON.stringify({action:'accountRegister',username:'evil',password:'Fixture-password-123'})}));assert.equal(csrf.status,403);
+let limited;for(let i=0;i<11;i++)limited=await post({action:'accountLogin',username:'missing_account',password:'Fixture-password-123'},'','account-rate');
+assert.equal(limited.status,400);assert.match(limited.data.error,/잠시/);
+console.log('PASS: account registration/adoption, hashing, login, private IDs, per-author names, cross-device ownership, credentials, duplicate IDs, session invalidation, logout, blocking, CSRF, rate limit');
+
+}
 sql.close();

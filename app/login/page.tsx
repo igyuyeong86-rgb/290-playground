@@ -1,1 +1,2 @@
-export default function Page(){return <main className="info-page"><a href="/">← 은하열차 통신</a><h1>캐릭터를 선택하고 시작하세요</h1><p>이제 회원가입이나 비밀번호 없이 캐릭터 프로필로 참여할 수 있습니다. 게시판의 ‘캐릭터 선택’ 버튼을 눌러 주세요.</p><a className="gold-button" href="/">캐릭터 선택하러 가기 →</a></main>}
+import AccountPanel from '../account-panel';
+export default function Page(){return <AccountPanel/>}

@@ -69,9 +69,9 @@ const firstPosts:Seed[]=rows.map(([id,key,at,title,body,memes=[]])=>{
  return {id,character:c.id,region:regions[Math.floor(at/3)].id,at:mapped,title,body,memes,source:c.source};
 });
 export const seedPosts:Seed[]=[...storyPosts,...firstPosts,...extraRows.map(([key,region,at,title,body])=>{const c=characters.find(c=>c.id===key||c.key===key)!;return {id:`profile-${c.id}`,character:c.id,region,at,title,body,memes:[],source:c.source};})];
-export type Post = Seed & {created:number;likes:number;comments:number;seeded:number;owned:boolean;media?:{images:string[];video:string}};
-export type Comment={id:string;character:string;body:string;created:number;owned:boolean;media?:{images:string[];video:string}};
-export type Visitor={character:string;admin?:boolean};
+export type Post = Seed & {displayName?:string;created:number;likes:number;comments:number;seeded:number;owned:boolean;media?:{images:string[];video:string}};
+export type Comment={displayName?:string;id:string;character:string;body:string;created:number;owned:boolean;media?:{images:string[];video:string}};
+export type Visitor={character:string;admin?:boolean;account?:boolean;username?:string;male?:string;female?:string;displayName?:string};
 
 // Banner messages are editorial fan writing, not quotations from the game.
 export function transmissionAt(at:number,regionId?:string){
