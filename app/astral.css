@@ -40,6 +40,7 @@ a.post-card{text-decoration:none;color:inherit}a.post-card:focus-visible{outline
 .hero-transmission p{font-size:14px;line-height:1.8;color:#fff;margin:8px 0 6px}
 .hero-transmission small{font-size:11px;color:#ddd7e9}
 @media(min-width:761px){
+ .hero[data-region="planarcadia"] .hero-herta{top:-105px}
  .hero[data-region="amphoreus"] .hero-herta{top:-45px}
  .hero[data-region="astropolis"] .hero-herta{top:-55px}
 }
