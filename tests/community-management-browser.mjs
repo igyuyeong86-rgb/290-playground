@@ -28,9 +28,9 @@ try{
    await page.goto(base+'/board/'+id+'?at=0');await page.locator('.hero-herta').evaluate(img=>img.decode());
    assert.equal(await page.getByLabel('스토리 시점',{exact:true}).count(),1);
    const picture=await page.locator('.hero-herta').boundingBox(),speech=await page.locator('.hero-transmission').boundingBox(),hero=await page.locator('.hero').boundingBox();
-   assert.ok(picture.y+picture.height<=speech.y+1,'speech below portrait');assert.ok(picture.x>=hero.x&&picture.x+picture.width<=hero.x+hero.width+1,'portrait inside hero');
+   assert.ok(picture.width>=390,'original large portrait restored');if(width>760){assert.ok(speech.width>=280,'readable speech width');assert.ok(speech.y>=hero.y&&speech.y+speech.height<=hero.y+hero.height+1,'speech inside banner');assert.ok(Number.parseFloat(await page.locator('.hero-transmission p').evaluate(e=>getComputedStyle(e).fontSize))>=14);}
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no page overflow');
-   if(id==='herta'||id==='penacony')await page.screenshot({path:'.wrangler/banner-'+id+'-'+width+'.png'});
+   if(['herta','penacony','amphoreus','astropolis'].includes(id))await page.screenshot({path:'.wrangler/banner-'+id+'-'+width+'.png'});
   }
  }
  await page.setViewportSize({width:1200,height:900});await page.goto(base+'/admin');
@@ -39,5 +39,5 @@ try{
  assert.ok((await page.getByRole('link',{name:'원문 보기'}).getAttribute('href')).includes(fixture.id));
  page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'댓글 삭제',exact:true}).click();await page.getByText('표시할 항목이 없습니다.',{exact:true}).waitFor();assert.equal(deleted,true);
  assert.deepEqual(errors,[]);
- console.log('PASS: timeless feed/detail links, hidden time controls, regional filters, 7 banners at desktop/mobile without overlap/overflow, account management and comment deletion UI');
+ console.log('PASS: timeless feed/detail links, hidden time controls, regional filters, 7 restored large banners at desktop/mobile without overflow and readable desktop speech, account management and comment deletion UI');
 }finally{await browser.close()}

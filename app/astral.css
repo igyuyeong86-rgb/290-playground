@@ -28,19 +28,18 @@ a.post-card{text-decoration:none;color:inherit}a.post-card:focus-visible{outline
 .image-viewer img{display:block;max-width:calc(95vw - 34px);max-height:calc(94dvh - 90px);object-fit:contain;margin:auto}
 .image-viewer-close{position:absolute;right:12px;top:10px;padding:10px 16px;border-radius:6px;background:#252d3d;color:var(--text)}
 
-/* Keep copy, portrait and speech in separate layout areas. */
-.hero{height:auto;min-height:360px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(240px,1fr);align-items:center;padding:28px;gap:20px}
-.hero-copy{width:auto;padding:10px 0;background:none;min-width:0}
-.hero h1{font-size:clamp(26px,2.5vw,38px);word-break:keep-all}
-.hero-copy>p{max-width:none;word-break:keep-all}
-.hero-visual{position:relative;z-index:1;min-width:0;display:grid;grid-template-rows:250px auto;justify-items:center;gap:10px;padding-top:12px}
-.hero-herta{position:static;display:block;width:100%;height:250px;max-width:100%;object-fit:contain;object-position:center;transform:none;opacity:1}
-.hero-transmission{position:static;display:block;min-width:0;width:100%;max-width:320px;padding:10px 14px;margin:0;background:#121a2cdd}
-.hero-transmission p{margin:6px 0;line-height:1.7}
-.hero-index{top:12px;right:16px;font-size:6px}
+/* Region icons and compact character categories. */
 .world-symbol{flex-shrink:0;width:24px;height:24px;display:inline-grid;place-items:center}
 .world-symbol img,.current-world img{width:100%;height:100%;object-fit:contain}
 .current-world>span{width:36px;height:36px;display:inline-grid;place-items:center}
 .roster small{max-width:100%;overflow-wrap:anywhere}.roster button{justify-content:flex-start}
-@media(max-width:1050px){.hero{grid-template-columns:minmax(0,1fr) minmax(200px,.85fr);padding:22px;gap:16px}.hero h1{font-size:27px}}
-@media(max-width:760px){.hero{grid-template-columns:minmax(0,1fr);padding:28px 20px 20px;gap:14px}.hero-copy{padding:0}.hero h1{font-size:28px}.hero-copy>p{font-size:11px}.hero-visual{grid-template-rows:220px auto;padding:0}.hero-herta{height:220px}.hero-transmission{max-width:100%}.hero-transmission p{font-size:11px}.hero-caption{margin-top:12px}}
+
+/* Original overlapping banner composition, with readable translucent speech. */
+.hero-transmission{width:300px;max-width:300px;min-width:0;padding:14px 18px;background:rgba(18,26,44,.64);backdrop-filter:blur(2px);border-color:#aaa1bd55;text-shadow:0 1px 3px #000a}
+.hero-transmission>span{font-size:9px;color:#d6c9ed}
+.hero-transmission p{font-size:14px;line-height:1.8;color:#fff;margin:8px 0 6px}
+.hero-transmission small{font-size:11px;color:#ddd7e9}
+@media(min-width:761px){
+ .hero[data-region="amphoreus"] .hero-herta{top:-45px}
+ .hero[data-region="astropolis"] .hero-herta{top:-55px}
+}
