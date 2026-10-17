@@ -68,8 +68,8 @@ dialog.silver-wolf-cameo[open]{display:grid;place-items:center}
 @media(max-width:600px){dialog.silver-wolf-cameo{padding:16px}.sw-content{flex-direction:column;gap:26px;padding:28px 22px}.sw-avatar{flex-basis:auto}.sw-avatar img{width:120px;height:120px}.sw-message h2{font-size:23px}.sw-status{padding:15px;font-size:10px}.sw-number{display:none}.sw-footer{flex-wrap:wrap;padding:18px 22px}.sw-footer button{margin-left:auto}}
 @media(prefers-reduced-motion:reduce){.silver-wolf-cameo .sw-terminal,.silver-wolf-cameo[data-phase="connecting"] .sw-terminal{animation:none}.silver-wolf-cameo[data-phase="leaving"] .sw-terminal{transform:none;transition:none;opacity:1}}
 
-/* A separate star keeps the existing home link immediate and predictable. */
+/* Invisible signal hotspot preserves its size, clicks, and keyboard access. */
 .brand-group{display:flex;align-items:center;gap:8px;flex-shrink:0;min-width:0}
 .signal-star{display:grid;place-items:center;flex-shrink:0;width:36px;height:40px;border:0;border-radius:8px;background:transparent;color:#b3a1d6;cursor:pointer;font-size:20px;touch-action:manipulation;user-select:none}
-.signal-star:hover{color:#e4d0ff;background:#b8a0ee12}.signal-star:active{color:#8fe5de}.signal-star:focus-visible{outline:2px solid #bba4ed;outline-offset:2px}.signal-star:disabled{cursor:default;opacity:.45}
+.signal-star>span{visibility:hidden}.signal-star:hover,.signal-star:active{background:transparent}.signal-star:focus-visible{outline:2px solid #bba4ed;outline-offset:2px}.signal-star:disabled{cursor:default;opacity:.45}
 @media(max-width:760px){.brand-group{gap:8px}.signal-star{width:40px;height:40px;font-size:19px}}
